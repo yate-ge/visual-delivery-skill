@@ -1,0 +1,26 @@
+:root {
+  /* Fallback defaults — overridden by design tokens on load */
+  --vds-colors-primary: #2563EB;
+  --vds-colors-primary-hover: #1D4ED8;
+  --vds-colors-background: #FFFFFF;
+  --vds-colors-surface: #F8FAFC;
+  --vds-colors-text: #1E293B;
+  --vds-colors-text-secondary: #64748B;
+  --vds-colors-border: #E2E8F0;
+  --vds-colors-success: #16A34A;
+  --vds-colors-warning: #F59E0B;
+  --vds-colors-danger: #DC2626;
+  --vds-colors-blocking-bg: #FEF2F2;
+  --vds-colors-blocking-border: #FCA5A5;
+  --vds-colors-interactive-bg: #FFF7ED;
+  --vds-colors-interactive-border: #FDBA74;
+
+  --vds-typography-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --vds-typography-font-family-mono: 'SF Mono', 'Fira Code', monospace;
+  --vds-typography-font-size-base: 15px;
+  --vds-typography-line-height: 1.6;
+
+  --vds-spacing-page-padding: 24px;
+  --vds-spacing-card-padding: 16px;
+  --vds-spacing-border-radius: 8px;
+}

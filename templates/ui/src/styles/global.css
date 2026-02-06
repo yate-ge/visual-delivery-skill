@@ -1,0 +1,53 @@
+@import './variables.css';
+
+/* highlight.js github theme */
+@import 'highlight.js/styles/github.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--vds-typography-font-family);
+  font-size: var(--vds-typography-font-size-base);
+  line-height: var(--vds-typography-line-height);
+  color: var(--vds-colors-text);
+  background: var(--vds-colors-background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--vds-colors-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--vds-colors-primary-hover);
+}
+
+code {
+  font-family: var(--vds-typography-font-family-mono);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--vds-colors-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--vds-colors-text-secondary);
+}
