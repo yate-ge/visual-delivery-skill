@@ -172,17 +172,30 @@ Server writes its PID to `{data-dir}/server.pid` on startup. Used by:
 - `start.sh` to check if server is already running
 - `stop.sh` to kill the process
 
-### Graceful Shutdown
+### Graceful Shutdown (Solve, Don't Punt)
 
 ```javascript
-process.on('SIGTERM', () => {
+function shutdown(signal) {
+  console.log(`Received ${signal}, shutting down...`);
   wss.close();
   server.close(() => {
-    // Clean up PID file
-    fs.unlinkSync(pidPath);
+    try {
+      fs.unlinkSync(pidPath);
+    } catch (err) {
+      // PID file already removed — not a problem
+      if (err.code !== 'ENOENT') console.error('PID cleanup error:', err.message);
+    }
     process.exit(0);
   });
-});
+  // Force exit if graceful shutdown takes too long (5s)
+  setTimeout(() => {
+    console.error('Graceful shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 5000);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 ```
 
 ## Dependencies (package.json)

@@ -340,10 +340,13 @@ Phase 4:
   → Test: theme customization, remote access
 
 Phase 5:
-  35. SKILL.md
-  36. references/api.md
-  37. references/feedback-schema.md
-  38. references/ui-components.md
-  39. agents/openai.yaml
-  → Test: end-to-end with real agent
+  35. Evaluation scenarios (test without skill first → baseline)
+  36. SKILL.md (under 500 lines, third-person description)
+  37. references/api.md (TOC if > 100 lines)
+  38. references/feedback-schema.md (TOC if > 100 lines)
+  39. references/ui-components.md (TOC if > 100 lines)
+  40. agents/openai.yaml
+  → Evaluate: run all scenarios with skill loaded
+  → Iterate: adjust SKILL.md based on observed agent behavior
+  → Verify: quality checklist passes
 ```
