@@ -55,6 +55,7 @@ description: >
 4. **Progressive disclosure** — SKILL.md is the table of contents; detailed specs live in `references/` (one level deep only)
 5. **Appropriate freedom** — high freedom for mode selection (agent decides based on context), low freedom for scripts (exact commands)
 6. **Consistent terminology** — always "delivery", "feedback", "annotation", "blocking" (see README.md terminology table)
+7. **UX-first** — agent MUST inform user at every significant step
 
 ### Instruction Structure
 
@@ -67,22 +68,69 @@ description: >
 [Define SKILL_DIR and DATA_DIR — two lines]
 
 ### Step 1: Ensure service is running
-- Input: none
-- Run: [health check command]
-- Output: [JSON]
-- If not running: [start command]
+- Tell user: "Starting Visual Delivery service..."
+- Run: node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR}
+- Parse JSON output
+- If first_run: Tell user about design spec location
+- Tell user: "Visual Delivery ready at {local_url}"
 
 ### Step 2: Deliver results
-[Mode selection guidance + three sub-sections with curl examples]
+[Mode selection guidance]
+
+#### Passive delivery
+- Tell user: "Preparing visual delivery..."
+- Run: curl POST /api/deliveries
+- Tell user: "View the delivery at {url}"
+
+#### Interactive delivery
+- Tell user: "Creating interactive delivery for your review..."
+- Run: curl POST /api/deliveries with feedback_schema
+- Tell user: "Review and provide feedback at {url}"
+
+#### Blocking delivery
+- Tell user: "I need your input. Opening delivery for your response..."
+- Run: node {SKILL_DIR}/scripts/await-feedback.js
+- If responded: process feedback, tell user "Thanks for your feedback"
+- If timeout: Tell user "No response received within 5 minutes.
+  Please visit {url} when you're ready."
+  Do NOT retry. Do NOT create a new blocking delivery.
 
 ### Step 3: Read feedback and annotations
-[File paths to read]
+[Per-delivery file paths: data/deliveries/{id}/feedback.json, annotations.json]
+- Tell user what feedback was received and what action will be taken
+
+### Step 4: Design customization (when requested)
+- Read {DATA_DIR}/design/design-spec.md for design intent
+- Update {DATA_DIR}/design/tokens.json to apply changes
+- Tell user: "Design tokens updated. The UI will refresh automatically."
 
 ### References
 **Feedback schema types**: See [references/feedback-schema.md](references/feedback-schema.md)
 **UI components and theming**: See [references/ui-components.md](references/ui-components.md)
 **API endpoints**: See [references/api.md](references/api.md)
+**Design system**: See [references/design-system.md](references/design-system.md)
 ```
+
+### Agent UX Requirements
+
+The SKILL.md MUST instruct the agent to inform the user at every significant step.
+This is critical for user experience — the user should never be left wondering
+what the agent is doing.
+
+**Required user notifications:**
+
+| When | What to tell the user |
+|------|----------------------|
+| Before starting service | "Starting Visual Delivery service..." |
+| Service ready | "Visual Delivery ready at {url}" |
+| First initialization | "Design specification created at {path}. Edit to customize the UI." |
+| Before creating delivery | "Preparing [mode] delivery..." |
+| After creating delivery | "View/Review at {url}" |
+| Blocking wait started | "Waiting for your input at {url}" |
+| Blocking timeout | "No response within 5 minutes. Visit {url} when ready." |
+| Feedback received | Summary of what was received |
+| Design tokens updated | "Design updated. UI will refresh automatically." |
+| Error occurred | Specific error message with next steps |
 
 ### Progressive Disclosure Rules
 
@@ -91,7 +139,7 @@ From best practices:
 - **Keep references ONE level deep** — SKILL.md → references/api.md (good). SKILL.md → references/api.md → references/details.md (bad, too deep)
 - **Reference files > 100 lines** must include a table of contents at the top
 - **Name files descriptively** — `feedback-schema.md`, not `doc2.md`
-- **Prefer execution over reading** — "Run `start.sh`" not "See `start.sh` for the logic"
+- **Prefer execution over reading** — "Run `start.js`" not "See `start.js` for the logic"
 
 ### Path Variables
 
@@ -132,6 +180,8 @@ Choose the delivery mode based on your need:
 | Server start | Low | Exact script command, no variation |
 | Blocking poll | Low | Exact script command, no variation |
 | Reading feedback files | Medium | Agent reads JSON files, decides what to act on |
+| Design token updates | Medium | Agent updates tokens based on design spec intent |
+| User notifications | Low | Agent MUST inform user at every step (exact patterns) |
 
 ## Relation to agents/openai.yaml
 

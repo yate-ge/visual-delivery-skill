@@ -59,8 +59,10 @@ Content-Type: application/json
 
 Notes:
 - `session_id` is only present when `mode` is `"blocking"`
+- Server creates `data/deliveries/{id}/` directory with delivery.json, annotations.json, feedback.json
+- For blocking mode, also creates `session.json` in the delivery directory
+- Server appends summary to `data/index.json`
 - Server pushes `new_delivery` event via WebSocket to connected browsers
-- For blocking mode, also creates a session entry in `sessions.json`
 
 ---
 
@@ -172,10 +174,45 @@ Content-Type: application/json
 }
 ```
 
-Side effects:
-- Updates delivery status to `"completed"` in `deliveries.json`
-- If delivery has an active blocking session: updates session status to `"responded"` in `sessions.json`
+Side effects (all writes use file locking):
+- Appends feedback to `data/deliveries/{id}/feedback.json`
+- Updates delivery status to `"completed"` in `data/deliveries/{id}/delivery.json`
+- Updates status in `data/index.json`
+- If delivery has an active blocking session: updates `data/deliveries/{id}/session.json` (status → `"responded"`)
 - Pushes `feedback_received` event via WebSocket
+
+---
+
+### Get Design Tokens
+
+```
+GET /api/design-tokens
+```
+
+**Response (200):**
+```json
+{
+  "colors": {
+    "primary": "#2563EB",
+    "background": "#FFFFFF",
+    "text": "#1E293B"
+  },
+  "typography": {
+    "font-family": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    "font-size-base": "15px"
+  },
+  "spacing": {
+    "page-padding": "24px",
+    "border-radius": "8px"
+  },
+  "components": { ... }
+}
+```
+
+Returns the current design tokens from `{DATA_DIR}/design/tokens.json`.
+
+The frontend fetches this on load and applies as CSS variables.
+Changes to tokens.json are pushed to the browser via WebSocket (`design_updated` event).
 
 ---
 
@@ -211,7 +248,7 @@ GET /api/sessions/:session_id
 }
 ```
 
-This endpoint is called by `await-feedback.sh` in a polling loop.
+This endpoint is called by `await-feedback.js` in a polling loop.
 
 ---
 
@@ -264,6 +301,23 @@ Sent when feedback is submitted (to update other open browser tabs).
   }
 }
 ```
+
+#### design_updated
+Sent when `{DATA_DIR}/design/tokens.json` is modified (file watcher).
+
+```json
+{
+  "event": "design_updated",
+  "data": {
+    "colors": { ... },
+    "typography": { ... },
+    "spacing": { ... },
+    "components": { ... }
+  }
+}
+```
+
+The frontend receives this and updates CSS variables on `:root` without page reload.
 
 ### Connection Lifecycle
 
