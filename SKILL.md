@@ -1,12 +1,13 @@
 ---
 name: visual-delivery
 description: >
-  Delivers task results visually through a web interface. Supports three modes:
-  passive (display reports, diffs, summaries), interactive (collect feedback,
-  reviews, approvals), and blocking (wait for user decisions before continuing).
-  Activates when the agent needs to present structured results, request user
-  review, or obtain a decision required to proceed. Does not activate for
-  simple text responses or terminal-inline answers.
+  Delivers ALL task results through a visual web interface. Two-phase model:
+  (1) User explicitly initializes by saying "start visual delivery" or similar.
+  (2) Once initialized ({CWD}/.visual-delivery exists), the skill is ALWAYS
+  active — every task result MUST be delivered visually. Supports passive
+  (display), interactive (feedback), and blocking (decision) modes.
+  IMPORTANT: On EVERY interaction, check if {CWD}/.visual-delivery/server.pid
+  exists. If yes, this skill is active and you MUST use it for all output.
 ---
 
 ## Visual Delivery
@@ -21,7 +22,33 @@ SKILL_DIR = {directory containing this SKILL.md}
 DATA_DIR  = {CWD}/.visual-delivery
 ```
 
-### Step 1: Ensure service is running
+### Activation Rule (CHECK ON EVERY INTERACTION)
+
+**At the start of EVERY user interaction**, determine the skill state:
+
+```
+Check: does {DATA_DIR}/server.pid exist?
+```
+
+| State | Condition | Action |
+|-------|-----------|--------|
+| **Uninitialized** | `server.pid` does not exist | Skill is dormant. Only activate when user explicitly requests initialization (e.g., "start visual delivery", "启动可视化交付", "initialize delivery"). |
+| **Initialized** | `server.pid` exists | Skill is **ALWAYS ACTIVE**. Go to Step 1, then deliver ALL task results through the visual interface. No exceptions. |
+
+**Once initialized, EVERY task result MUST be delivered visually.** This includes:
+- Code generation / modification summaries
+- Analysis and investigation reports
+- File change diffs
+- Test results
+- Any structured output
+
+The ONLY things that stay as plain text:
+- Direct conversational replies (greetings, short clarifications, yes/no answers)
+- Error messages about the skill itself failing
+
+### Step 0: Explicit initialization (first time only)
+
+When the user explicitly requests initialization:
 
 Tell user: "Starting Visual Delivery service..."
 
@@ -40,6 +67,26 @@ Parse JSON from stdout. Handle these statuses:
 Tell user: "Visual Delivery ready at {local_url}"
 
 If `remote_url` is present, also tell user the remote URL.
+
+**After successful initialization, the skill is now ALWAYS ACTIVE for this project.**
+
+### Step 1: Ensure service is running (every interaction when initialized)
+
+Before delivering results, verify the server is healthy:
+
+```bash
+curl -s http://localhost:3847/health
+```
+
+If healthy → proceed to Step 2.
+
+If NOT healthy → restart the server:
+
+```bash
+node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR}
+```
+
+Parse JSON and handle as in Step 0. Then proceed to Step 2.
 
 ### Step 2: Deliver results
 
@@ -142,6 +189,16 @@ When the user asks to change the visual design:
 The user can also edit tokens.json directly — changes apply instantly.
 
 See [references/design-system.md](references/design-system.md) for token format.
+
+### Deactivation
+
+When the user says "stop visual delivery" or similar:
+
+```bash
+node {SKILL_DIR}/scripts/stop.js --data-dir {DATA_DIR}
+```
+
+Tell user: "Visual Delivery stopped. Results will be delivered as plain text."
 
 ### References
 
