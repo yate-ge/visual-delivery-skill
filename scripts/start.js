@@ -57,20 +57,6 @@ function commandExists(cmd) {
   }
 }
 
-function isRemoteEnvironment() {
-  const env = process.env;
-  return !!(
-    env.CODESPACE_NAME ||
-    env.GITPOD_WORKSPACE_URL ||
-    env.REPL_ID ||
-    env.SSH_CLIENT ||
-    env.SSH_TTY ||
-    env.C9_HOSTNAME ||
-    env.CLOUD_SHELL ||
-    env.CI
-  );
-}
-
 async function checkServerHealth(port, timeoutSec) {
   const deadline = Date.now() + timeoutSec * 1000;
   while (Date.now() < deadline) {
@@ -235,7 +221,7 @@ async function main() {
 
   // Handle remote access
   let remoteUrl = null;
-  const wantRemote = args['remote'] === true || (!args['no-remote'] && isRemoteEnvironment());
+  const wantRemote = args['remote'] === true;
 
   if (wantRemote) {
     log('Checking remote access...');

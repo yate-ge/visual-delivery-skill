@@ -110,11 +110,11 @@ const styles = {
     alignItems: 'center',
   },
   title: {
-    fontSize: '15px',
+    fontSize: '16px',
     color: 'var(--vds-colors-text)',
   },
   count: {
-    fontSize: '12px',
+    fontSize: '13px',
     color: 'var(--vds-colors-text-secondary)',
   },
   section: {
@@ -123,7 +123,7 @@ const styles = {
     gap: '8px',
   },
   sectionLabel: {
-    fontSize: '12px',
+    fontSize: '13px',
     fontWeight: '600',
     color: 'var(--vds-colors-text-secondary)',
     textTransform: 'uppercase',
@@ -135,7 +135,7 @@ const styles = {
     border: '1px solid var(--vds-colors-border)',
     borderRadius: '8px',
     padding: '8px',
-    fontSize: '13px',
+    fontSize: '14px',
     fontFamily: 'inherit',
     outline: 'none',
   },
@@ -145,7 +145,7 @@ const styles = {
     color: 'var(--vds-colors-text)',
     borderRadius: '8px',
     padding: '8px 10px',
-    fontSize: '12px',
+    fontSize: '13px',
     cursor: 'pointer',
     fontFamily: 'inherit',
   },
@@ -155,7 +155,7 @@ const styles = {
     padding: '10px 12px',
     background: 'var(--vds-colors-primary)',
     color: 'white',
-    fontSize: '13px',
+    fontSize: '14px',
     cursor: 'pointer',
     fontWeight: '600',
     fontFamily: 'inherit',
@@ -177,7 +177,7 @@ const styles = {
     marginBottom: '6px',
   },
   badge: {
-    fontSize: '11px',
+    fontSize: '12px',
     textTransform: 'uppercase',
     color: 'var(--vds-colors-primary)',
     fontWeight: '600',
@@ -186,12 +186,12 @@ const styles = {
     background: 'none',
     border: 'none',
     color: 'var(--vds-colors-danger)',
-    fontSize: '11px',
+    fontSize: '12px',
     cursor: 'pointer',
     fontFamily: 'inherit',
   },
   payload: {
-    fontSize: '11px',
+    fontSize: '12px',
     background: 'var(--vds-colors-surface)',
     borderRadius: '6px',
     padding: '6px',
@@ -199,7 +199,7 @@ const styles = {
     overflow: 'auto',
   },
   empty: {
-    fontSize: '12px',
+    fontSize: '13px',
     color: 'var(--vds-colors-text-secondary)',
   },
   pendingItem: {
@@ -211,11 +211,11 @@ const styles = {
     paddingBottom: '6px',
   },
   pendingId: {
-    fontSize: '11px',
+    fontSize: '12px',
     color: 'var(--vds-colors-text-secondary)',
   },
   pendingKind: {
-    fontSize: '11px',
+    fontSize: '12px',
     textTransform: 'uppercase',
     color: 'var(--vds-colors-text)',
   },

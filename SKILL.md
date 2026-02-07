@@ -19,6 +19,14 @@ SKILL_DIR = {directory containing this SKILL.md}
 DATA_DIR  = {CWD}/.visual-delivery
 ```
 
+### User-facing output rules
+
+- Keep startup responses concise and task-oriented.
+- Do NOT output capability menus like "你现在可以 1/2/3" after startup.
+- Do NOT ask open-ended questions like "你想做什么？" after startup.
+- Do NOT append onboarding checklists or "next step menus" unless user explicitly asks for options.
+- After startup, only report readiness + path info (if first run) + remote access choice.
+
 ### Step 1: Ensure service is running
 
 Tell user: "Starting Visual Delivery service..."
@@ -36,6 +44,25 @@ Parse stdout JSON:
 | `error` | Tell user the `message` and stop. |
 
 Tell user: "Visual Delivery ready at {local_url}".
+
+If `first_run` is true, also tell user: "Design spec initialized at {design_spec_path}".
+
+Immediately ask remote access choice (specific, not open-ended):
+
+> The service is available locally at {local_url}.
+> For external access, choose one:
+> 1) Open network access to port 3847
+> 2) Start a temporary public tunnel (requires `cloudflared`)
+>
+> Reply with: `local only` or `start tunnel`.
+
+If user chooses tunnel:
+
+```bash
+node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR} --remote
+```
+
+If `remote_url` is returned, tell user the tunnel URL.
 
 ### Step 2: Choose mode
 

@@ -42,7 +42,7 @@
   "typography": {
     "font-family": "system font stack",
     "font-family-mono": "monospace stack",
-    "font-size-base": "15px",
+    "font-size-base": "16px",
     "line-height": "1.6"
   },
   "spacing": {

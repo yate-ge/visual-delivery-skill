@@ -115,7 +115,7 @@ const styles = {
   },
   settingsLink: {
     color: 'var(--vds-colors-text-secondary)',
-    fontSize: '14px',
+    fontSize: '15px',
   },
   alignmentBanner: {
     border: '1px solid #FCD34D',
@@ -125,13 +125,13 @@ const styles = {
     marginBottom: '16px',
   },
   bannerTitle: {
-    fontSize: '12px',
+    fontSize: '13px',
     textTransform: 'uppercase',
     color: '#92400E',
     marginBottom: '4px',
   },
   bannerLink: {
-    fontSize: '15px',
+    fontSize: '16px',
     color: '#92400E',
     fontWeight: '600',
     textDecoration: 'none',
@@ -146,7 +146,7 @@ const styles = {
     borderRadius: '999px',
     background: 'white',
     padding: '6px 12px',
-    fontSize: '12px',
+    fontSize: '13px',
     cursor: 'pointer',
     color: 'var(--vds-colors-text-secondary)',
     fontFamily: 'inherit',
@@ -176,12 +176,12 @@ const styles = {
     gap: '8px',
   },
   cardTitle: {
-    fontSize: '15px',
+    fontSize: '16px',
     color: 'var(--vds-colors-text)',
     fontWeight: '600',
   },
   status: {
-    fontSize: '11px',
+    fontSize: '12px',
     borderRadius: '999px',
     textTransform: 'uppercase',
     padding: '3px 8px',
@@ -202,7 +202,7 @@ const styles = {
     gap: '10px',
     marginTop: '8px',
     color: 'var(--vds-colors-text-secondary)',
-    fontSize: '12px',
+    fontSize: '13px',
   },
   empty: {
     textAlign: 'center',

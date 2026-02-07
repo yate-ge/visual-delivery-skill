@@ -36,7 +36,7 @@ You can also edit `tokens.json` directly for immediate changes.
 - **Body font**: System font stack (-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif)
   - Rationale: Native feel, fast loading, no web font dependency
 - **Code font**: 'SF Mono', 'Fira Code', monospace
-- **Base size**: 15px — slightly larger than default for readability
+- **Base size**: 16px — improved readability for dense review screens
 - **Line height**: 1.6 — generous for comfortable reading
 
 ## Spacing

@@ -72,7 +72,7 @@ const styles = {
     borderRadius: 'var(--vds-spacing-border-radius)',
     padding: '16px',
     overflow: 'auto',
-    fontSize: '13px',
+    fontSize: '14px',
     fontFamily: 'var(--vds-typography-font-family-mono)',
     margin: '16px 0',
   },
@@ -96,12 +96,12 @@ const styles = {
     padding: '8px 12px',
     borderBottom: '2px solid var(--vds-colors-border)',
     fontWeight: '600',
-    fontSize: '13px',
+    fontSize: '14px',
   },
   td: {
     padding: '8px 12px',
     borderBottom: '1px solid var(--vds-colors-border)',
-    fontSize: '14px',
+    fontSize: '15px',
   },
   link: {
     color: 'var(--vds-colors-primary)',

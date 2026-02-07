@@ -195,7 +195,7 @@ const styles = {
   },
   backLink: {
     color: 'var(--vds-colors-text-secondary)',
-    fontSize: '14px',
+    fontSize: '15px',
     display: 'inline-block',
     marginBottom: '10px',
   },
@@ -211,7 +211,7 @@ const styles = {
   },
   modeBadge: {
     textTransform: 'uppercase',
-    fontSize: '11px',
+    fontSize: '12px',
     borderRadius: '999px',
     padding: '3px 10px',
     border: '1px solid transparent',
@@ -230,7 +230,7 @@ const styles = {
   metaRow: {
     display: 'flex',
     gap: '12px',
-    fontSize: '13px',
+    fontSize: '14px',
     color: 'var(--vds-colors-text-secondary)',
   },
   sourceInfo: {
@@ -242,7 +242,7 @@ const styles = {
     borderRadius: '12px',
     background: 'var(--vds-colors-surface)',
     marginBottom: '14px',
-    fontSize: '13px',
+    fontSize: '14px',
   },
   alignmentNotice: {
     border: '1px solid #FCD34D',
@@ -251,7 +251,7 @@ const styles = {
     borderRadius: '10px',
     padding: '10px 12px',
     marginBottom: '14px',
-    fontSize: '13px',
+    fontSize: '14px',
   },
   layout: {
     display: 'flex',
@@ -271,13 +271,13 @@ const styles = {
     padding: '12px',
   },
   feedbackStateTitle: {
-    fontSize: '14px',
+    fontSize: '15px',
     marginBottom: '8px',
   },
   feedbackStateBody: {
     display: 'flex',
     gap: '12px',
-    fontSize: '13px',
+    fontSize: '14px',
     color: 'var(--vds-colors-text-secondary)',
   },
 };

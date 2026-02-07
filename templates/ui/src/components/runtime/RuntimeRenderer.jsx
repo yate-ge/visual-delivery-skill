@@ -318,11 +318,11 @@ const styles = {
     background: 'var(--vds-colors-surface)',
   },
   cardTitle: {
-    fontSize: '15px',
+    fontSize: '16px',
     color: 'var(--vds-colors-text)',
   },
   typeTag: {
-    fontSize: '11px',
+    fontSize: '12px',
     textTransform: 'uppercase',
     color: 'var(--vds-colors-text-secondary)',
   },
@@ -342,7 +342,7 @@ const styles = {
     background: 'var(--vds-colors-surface)',
   },
   metricLabel: {
-    fontSize: '12px',
+    fontSize: '13px',
     color: 'var(--vds-colors-text-secondary)',
   },
   metricValue: {
@@ -352,7 +352,7 @@ const styles = {
     marginTop: '4px',
   },
   metricNote: {
-    fontSize: '11px',
+    fontSize: '12px',
     color: 'var(--vds-colors-text-secondary)',
     marginTop: '4px',
   },
@@ -372,7 +372,7 @@ const styles = {
     background: 'white',
     color: 'var(--vds-colors-text-secondary)',
     padding: '4px 10px',
-    fontSize: '12px',
+    fontSize: '13px',
     cursor: 'pointer',
     fontFamily: 'inherit',
   },
@@ -389,7 +389,7 @@ const styles = {
     border: '1px solid var(--vds-colors-border)',
     borderRadius: '8px',
     padding: '8px',
-    fontSize: '13px',
+    fontSize: '14px',
     fontFamily: 'inherit',
     outline: 'none',
   },
@@ -397,7 +397,7 @@ const styles = {
     border: '1px solid var(--vds-colors-border)',
     borderRadius: '8px',
     padding: '8px',
-    fontSize: '13px',
+    fontSize: '14px',
     fontFamily: 'inherit',
     background: 'white',
     outline: 'none',
@@ -406,7 +406,7 @@ const styles = {
     border: '1px solid var(--vds-colors-border)',
     borderRadius: '8px',
     padding: '8px',
-    fontSize: '13px',
+    fontSize: '14px',
     fontFamily: 'inherit',
     resize: 'vertical',
     outline: 'none',
@@ -418,7 +418,7 @@ const styles = {
     background: 'white',
     color: 'var(--vds-colors-text)',
     padding: '8px 10px',
-    fontSize: '12px',
+    fontSize: '13px',
     cursor: 'pointer',
     fontFamily: 'inherit',
   },
@@ -433,13 +433,13 @@ const styles = {
     textAlign: 'left',
     borderBottom: '1px solid var(--vds-colors-border)',
     padding: '8px',
-    fontSize: '12px',
+    fontSize: '13px',
     color: 'var(--vds-colors-text-secondary)',
   },
   td: {
     borderBottom: '1px solid var(--vds-colors-border)',
     padding: '8px',
-    fontSize: '13px',
+    fontSize: '14px',
   },
   listView: {
     display: 'flex',
@@ -453,7 +453,7 @@ const styles = {
     background: 'var(--vds-colors-surface)',
   },
   listField: {
-    fontSize: '12px',
+    fontSize: '13px',
     color: 'var(--vds-colors-text)',
     marginBottom: '4px',
   },
@@ -469,7 +469,7 @@ const styles = {
     gap: '6px',
   },
   fieldLabel: {
-    fontSize: '12px',
+    fontSize: '13px',
     color: 'var(--vds-colors-text-secondary)',
   },
   empty: {
@@ -478,6 +478,6 @@ const styles = {
     padding: '24px',
     textAlign: 'center',
     color: 'var(--vds-colors-text-secondary)',
-    fontSize: '14px',
+    fontSize: '15px',
   },
 };
