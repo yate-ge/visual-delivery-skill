@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useDesignTokens } from '../hooks/useDesignTokens';
 import { flattenTokens } from '../lib/theme';
+import { t } from '../lib/i18n';
 
 export default function Settings() {
   const tokens = useDesignTokens();
@@ -10,31 +11,30 @@ export default function Settings() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <Link to="/" style={styles.backLink}>&larr; Back to dashboard</Link>
-        <h1 style={styles.title}>Settings</h1>
+        <Link to="/" style={styles.backLink}>{t('backToDashboard')}</Link>
+        <h1 style={styles.title}>{t('settings')}</h1>
       </header>
 
       <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Design System</h2>
+        <h2 style={styles.sectionTitle}>{t('designSystem')}</h2>
         <p style={styles.description}>
-          Edit the design specification or tokens to customize the UI appearance.
-          Changes to <code>tokens.json</code> take effect immediately.
+          {t('designDesc')}
         </p>
 
         <div style={styles.paths}>
           <div style={styles.pathItem}>
-            <span style={styles.pathLabel}>Design Spec</span>
+            <span style={styles.pathLabel}>{t('designSpec')}</span>
             <code style={styles.pathValue}>.visual-delivery/design/design-spec.md</code>
           </div>
           <div style={styles.pathItem}>
-            <span style={styles.pathLabel}>Design Tokens</span>
+            <span style={styles.pathLabel}>{t('designTokens')}</span>
             <code style={styles.pathValue}>.visual-delivery/design/tokens.json</code>
           </div>
         </div>
       </section>
 
       <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Current Token Values</h2>
+        <h2 style={styles.sectionTitle}>{t('currentTokenValues')}</h2>
         {tokens ? (
           <div style={styles.tokenList}>
             {Object.entries(flatTokens).map(([key, value]) => (
@@ -53,7 +53,7 @@ export default function Settings() {
             ))}
           </div>
         ) : (
-          <p style={styles.description}>Loading tokens...</p>
+          <p style={styles.description}>{t('loadingTokens')}</p>
         )}
       </section>
     </div>

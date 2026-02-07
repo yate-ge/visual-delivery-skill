@@ -25,6 +25,7 @@ const args = parseArgs(process.argv);
 const dataDir = args['data-dir'] || path.join(process.cwd(), '.visual-delivery');
 const port = parseInt(args['port']) || 3847;
 const host = args['host'] || '127.0.0.1';
+const lang = args['lang'] || 'en';
 const uiDir = args['ui-dir'] || path.join(dataDir, 'ui', 'dist');
 
 // Ensure data directories exist
@@ -44,6 +45,11 @@ app.set('port', port);
 
 // API routes
 setupRoutes(app, dataDir);
+
+// Language config endpoint
+app.get('/api/config', (req, res) => {
+  res.json({ lang });
+});
 
 // Static files (runtime-built frontend)
 if (fs.existsSync(uiDir)) {

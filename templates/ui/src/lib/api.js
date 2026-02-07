@@ -39,3 +39,9 @@ export async function fetchDesignTokens() {
   if (!res.ok) throw new Error('Failed to fetch design tokens');
   return res.json();
 }
+
+export async function fetchConfig() {
+  const res = await fetch(`${BASE}/api/config`);
+  if (!res.ok) throw new Error('Failed to fetch config');
+  return res.json();
+}

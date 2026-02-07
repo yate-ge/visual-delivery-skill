@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDeliveries } from '../hooks/useDeliveries';
+import { t } from '../lib/i18n';
 
 const MODE_FILTERS = ['all', 'passive', 'interactive', 'blocking'];
 
@@ -14,13 +15,15 @@ const STATUS_ICONS = {
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 1) return t('justNow');
+  if (minutes < 60) return t('minAgo', { n: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t('hoursAgo', { n: hours });
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return t('daysAgo', { n: days });
 }
+
+const MODE_LABELS = { all: 'all', passive: 'passive', interactive: 'interactive', blocking: 'blocking' };
 
 export default function Dashboard() {
   const { deliveries, loading, error } = useDeliveries();
@@ -44,15 +47,15 @@ export default function Dashboard() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.title}>Visual Delivery</h1>
-        <Link to="/settings" style={styles.settingsLink}>Settings</Link>
+        <h1 style={styles.title}>{t('appTitle')}</h1>
+        <Link to="/settings" style={styles.settingsLink}>{t('settings')}</Link>
       </header>
 
       {blockingDeliveries.length > 0 && (
         <div style={styles.blockingAlert}>
           <div style={styles.blockingAlertIcon}>!</div>
           <div style={styles.blockingAlertContent}>
-            <strong>Agent is waiting for your response</strong>
+            <strong>{t('agentWaiting')}</strong>
             <div style={styles.blockingAlertLinks}>
               {blockingDeliveries.map(d => (
                 <Link key={d.id} to={`/d/${d.id}`} style={styles.blockingAlertLink}>
@@ -74,15 +77,15 @@ export default function Dashboard() {
               ...(filter === m ? styles.filterBtnActive : {})
             }}
           >
-            {m.charAt(0).toUpperCase() + m.slice(1)}
+            {t(m)}
           </button>
         ))}
       </div>
 
-      {loading && <div style={styles.empty}>Loading deliveries...</div>}
+      {loading && <div style={styles.empty}>{t('loading')}</div>}
       {error && <div style={styles.error}>Error: {error}</div>}
       {!loading && sorted.length === 0 && (
-        <div style={styles.empty}>No deliveries yet. The agent will create them as needed.</div>
+        <div style={styles.empty}>{t('noDeliveries')}</div>
       )}
 
       <div style={styles.list}>

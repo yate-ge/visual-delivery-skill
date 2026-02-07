@@ -1,20 +1,18 @@
+import { useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import MermaidDiagram from './MermaidDiagram';
 
 export default function ContentRenderer({ content }) {
   if (!content) return null;
 
+  // HTML content type — render as self-contained HTML (supports embedded scripts)
   if (content.type === 'html') {
-    return (
-      <div
-        style={styles.content}
-        dangerouslySetInnerHTML={{ __html: content.body }}
-      />
-    );
+    return <HtmlRenderer html={content.body} />;
   }
 
-  // Default: markdown
+  // Default: markdown with enhanced rendering
   return (
     <div style={styles.content}>
       <ReactMarkdown
@@ -25,6 +23,13 @@ export default function ContentRenderer({ content }) {
             <pre style={styles.pre}>{children}</pre>
           ),
           code: ({ inline, className, children, ...props }) => {
+            const text = String(children).replace(/\n$/, '');
+
+            // Mermaid diagram support
+            if (className === 'language-mermaid' || className?.includes('language-mermaid')) {
+              return <MermaidDiagram content={text} />;
+            }
+
             if (inline) {
               return <code style={styles.inlineCode} {...props}>{children}</code>;
             }
@@ -55,6 +60,35 @@ export default function ContentRenderer({ content }) {
       </ReactMarkdown>
     </div>
   );
+}
+
+// HTML renderer with script execution support for rich interactive content
+function HtmlRenderer({ html }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!ref.current || !html) return;
+
+    // Set HTML
+    ref.current.innerHTML = html;
+
+    // Execute any <script> tags in the HTML content
+    const scripts = ref.current.querySelectorAll('script');
+    scripts.forEach(oldScript => {
+      const newScript = document.createElement('script');
+      // Copy attributes
+      Array.from(oldScript.attributes).forEach(attr => {
+        newScript.setAttribute(attr.name, attr.value);
+      });
+      // Copy inline content
+      if (oldScript.textContent) {
+        newScript.textContent = oldScript.textContent;
+      }
+      oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
+  }, [html]);
+
+  return <div ref={ref} style={styles.content} />;
 }
 
 const styles = {

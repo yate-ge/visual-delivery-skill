@@ -5,17 +5,18 @@ import { eventBus } from '../lib/eventBus';
 import ContentRenderer from '../components/ContentRenderer';
 import FeedbackRenderer from '../components/feedback/FeedbackRenderer';
 import AnnotationSidebar from '../components/AnnotationSidebar';
+import { t } from '../lib/i18n';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 1) return t('justNow');
+  if (minutes < 60) return t('minAgo', { n: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t('hoursAgo', { n: hours });
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return t('daysAgo', { n: days });
 }
 
 export default function DeliveryPage() {
@@ -83,7 +84,7 @@ export default function DeliveryPage() {
 
   if (loading) return <div style={styles.loading}>Loading...</div>;
   if (error) return <div style={styles.error}>Error: {error}</div>;
-  if (!delivery) return <div style={styles.error}>Delivery not found</div>;
+  if (!delivery) return <div style={styles.error}>{t('deliveryNotFound')}</div>;
 
   const isBlocking = delivery.mode === 'blocking' && delivery.status === 'awaiting_feedback';
   const hasFeedbackSchema = delivery.feedback_schema && !feedbackSubmitted;
@@ -91,7 +92,7 @@ export default function DeliveryPage() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <Link to="/" style={styles.backLink}>&larr; Back to list</Link>
+        <Link to="/" style={styles.backLink}>{t('backToList')}</Link>
         <div style={styles.headerRight}>
           <h1 style={styles.title}>{delivery.title}</h1>
           <div style={styles.meta}>
@@ -111,7 +112,7 @@ export default function DeliveryPage() {
 
       {isBlocking && (
         <div style={styles.waitingBanner}>
-          Agent is waiting for your response
+          {t('agentWaiting')}
         </div>
       )}
 
@@ -121,7 +122,7 @@ export default function DeliveryPage() {
 
           {hasFeedbackSchema && (
             <div style={styles.feedbackSection}>
-              <h2 style={styles.sectionTitle}>Your Feedback</h2>
+              <h2 style={styles.sectionTitle}>{t('yourFeedback')}</h2>
               <FeedbackRenderer
                 schema={delivery.feedback_schema}
                 onSubmit={handleFeedbackSubmit}
@@ -133,7 +134,7 @@ export default function DeliveryPage() {
             <div style={styles.feedbackDone}>
               <div style={styles.feedbackDoneIcon}>{'\u2713'}</div>
               <div>
-                <strong>Feedback submitted</strong>
+                <strong>{t('feedbackSubmitted')}</strong>
                 <pre style={styles.feedbackPreview}>
                   {JSON.stringify(delivery.feedback[delivery.feedback.length - 1].values, null, 2)}
                 </pre>
@@ -144,12 +145,12 @@ export default function DeliveryPage() {
 
         <div style={styles.sidebar}>
           <div style={styles.sidebarHeader}>
-            <h3 style={styles.sidebarTitle}>Annotations</h3>
+            <h3 style={styles.sidebarTitle}>{t('annotations')}</h3>
             <button
               onClick={() => setShowAnnotationInput(!showAnnotationInput)}
               style={styles.addBtn}
             >
-              + Add Comment
+              {t('addComment')}
             </button>
           </div>
 
@@ -158,13 +159,13 @@ export default function DeliveryPage() {
               <textarea
                 value={annotationText}
                 onChange={e => setAnnotationText(e.target.value)}
-                placeholder="Add a comment..."
+                placeholder={t('addCommentPlaceholder')}
                 style={styles.textarea}
                 rows={3}
               />
               <div style={styles.annotationActions}>
-                <button onClick={handleAddAnnotation} style={styles.submitBtn}>Submit</button>
-                <button onClick={() => { setShowAnnotationInput(false); setAnnotationText(''); }} style={styles.cancelBtn}>Cancel</button>
+                <button onClick={handleAddAnnotation} style={styles.submitBtn}>{t('submit')}</button>
+                <button onClick={() => { setShowAnnotationInput(false); setAnnotationText(''); }} style={styles.cancelBtn}>{t('cancel')}</button>
               </div>
             </div>
           )}

@@ -88,6 +88,7 @@ async function checkServerHealth(port, timeoutSec) {
 async function main() {
   const args = parseArgs(process.argv);
   const port = parseInt(args['port']) || PORT;
+  const lang = args['lang'] || 'en';
   const dataDir = path.resolve(args['data-dir'] || path.join(process.cwd(), '.visual-delivery'));
 
   // Check Node.js version
@@ -102,28 +103,67 @@ async function main() {
 
   // Check if already running
   const pidFile = path.join(dataDir, 'server.pid');
+  let portInUse = false;
+
+  // First check if the port is in use by any process
+  try {
+    const res = await fetch(`http://localhost:${port}/health`);
+    if (res.ok) portInUse = true;
+  } catch {
+    // Port not in use
+  }
+
   if (fs.existsSync(pidFile)) {
     const pid = parseInt(fs.readFileSync(pidFile, 'utf8'));
-    if (isProcessAlive(pid)) {
-      // Verify it's our server by checking health
-      try {
-        const res = await fetch(`http://localhost:${port}/health`);
-        if (res.ok) {
-          log(`Server already running at http://localhost:${port} (PID ${pid})`);
-          outputJSON({
-            status: 'already_running',
-            local_url: `http://localhost:${port}`,
-            pid,
-            first_run: false
-          });
-          process.exit(0);
-        }
-      } catch {
-        // Port not responding, stale PID
-      }
+    if (isProcessAlive(pid) && portInUse) {
+      log(`Server already running at http://localhost:${port} (PID ${pid})`);
+      outputJSON({
+        status: 'already_running',
+        local_url: `http://localhost:${port}`,
+        pid,
+        first_run: false
+      });
+      process.exit(0);
     }
-    // Stale PID file
+    // Stale PID file — kill old process if alive
+    if (isProcessAlive(pid)) {
+      try { process.kill(pid, 'SIGTERM'); } catch {}
+    }
     try { fs.unlinkSync(pidFile); } catch {}
+  }
+
+  // Port occupied by unknown process (PID mismatch or no PID file) — try to find and kill it
+  if (portInUse) {
+    log(`Port ${port} occupied by another process, attempting to free it...`);
+    try {
+      const result = execSync(
+        process.platform === 'win32'
+          ? `netstat -ano | findstr :${port}`
+          : `lsof -ti :${port}`,
+        { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
+      ).trim();
+      if (result) {
+        const pids = result.split('\n').map(p => parseInt(p.trim())).filter(Boolean);
+        for (const p of pids) {
+          try { process.kill(p, 'SIGTERM'); } catch {}
+        }
+        await sleep(1000);
+        log('  Port freed.');
+      }
+    } catch {
+      // Could not find/kill process
+    }
+  }
+
+  // Always clear delivery data on server start (clean slate for each session)
+  if (fs.existsSync(path.join(dataDir, 'data'))) {
+    log('Clearing previous delivery data...');
+    const deliveriesDataDir = path.join(dataDir, 'data', 'deliveries');
+    if (fs.existsSync(deliveriesDataDir)) {
+      fs.rmSync(deliveriesDataDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(deliveriesDataDir, { recursive: true });
+    fs.writeFileSync(path.join(dataDir, 'data', 'index.json'), '[]', 'utf8');
   }
 
   // Determine if first run
@@ -133,15 +173,16 @@ async function main() {
   if (firstRun) {
     log('Initializing work directory...');
 
-    // Create data directories
-    fs.mkdirSync(path.join(dataDir, 'data', 'deliveries'), { recursive: true });
+    // Create data directories (always start with clean delivery data)
+    const deliveriesDataDir = path.join(dataDir, 'data', 'deliveries');
+    if (fs.existsSync(deliveriesDataDir)) {
+      fs.rmSync(deliveriesDataDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(deliveriesDataDir, { recursive: true });
     fs.mkdirSync(path.join(dataDir, 'logs'), { recursive: true });
 
-    // Initialize index.json
-    const indexPath = path.join(dataDir, 'data', 'index.json');
-    if (!fs.existsSync(indexPath)) {
-      fs.writeFileSync(indexPath, '[]', 'utf8');
-    }
+    // Initialize index.json (always clean)
+    fs.writeFileSync(path.join(dataDir, 'data', 'index.json'), '[]', 'utf8');
 
     // Copy server template
     log('  Copying server template...');
@@ -214,7 +255,8 @@ async function main() {
     'index.js',
     '--data-dir', dataDir,
     '--port', String(port),
-    '--ui-dir', distDir
+    '--ui-dir', distDir,
+    '--lang', lang
   ], {
     cwd: serverDir,
     detached: true,
@@ -233,9 +275,9 @@ async function main() {
     process.exit(1);
   }
 
-  // Handle remote access
+  // Handle remote access (only when explicitly requested with --remote)
   let remoteUrl = null;
-  const wantRemote = args['remote'] === true || (!args['no-remote'] && isRemoteEnvironment());
+  const wantRemote = args['remote'] === true;
 
   if (wantRemote) {
     log('Checking remote access...');
