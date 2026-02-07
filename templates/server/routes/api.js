@@ -7,8 +7,11 @@ const { broadcast } = require('../lib/ws');
 const DELIVERY_MODES = ['task_delivery', 'alignment'];
 const DELIVERY_STATUSES = ['normal', 'pending_feedback'];
 const ALIGNMENT_STATES = ['active', 'resolved', 'canceled'];
+const SUPPORTED_LANGUAGES = ['zh', 'en'];
 
 const DEFAULT_SETTINGS = {
+  language: null,
+  language_explicit: false,
   platform: {
     name: 'Visual Delivery',
     logo_url: '',
@@ -23,12 +26,25 @@ function ensureUiSpecContent(content) {
   return !!content.ui_spec && typeof content.ui_spec === 'object';
 }
 
-function normalizeMetadata(metadata = {}) {
+function cleanText(value) {
+  if (typeof value !== 'string') return '';
+  const text = value.trim();
+  if (text === 'Untitled Project' || text === 'Untitled Task') {
+    return '';
+  }
+  return text;
+}
+
+function normalizeMetadata(metadata = {}, fallback = {}) {
+  const projectName = cleanText(metadata.project_name) || cleanText(fallback.project_name);
+  const taskName = cleanText(metadata.task_name) || cleanText(fallback.task_name);
+  const audience = cleanText(metadata.audience) || 'stakeholder';
+
   return {
-    project_name: metadata.project_name || 'Untitled Project',
-    task_name: metadata.task_name || 'Untitled Task',
+    project_name: projectName || null,
+    task_name: taskName || null,
     generated_at: metadata.generated_at || new Date().toISOString(),
-    audience: metadata.audience || 'stakeholder',
+    audience,
   };
 }
 
@@ -52,6 +68,7 @@ function setupRoutes(app, dataDir) {
   const sessionsDir = path.join(dataRoot, 'sessions');
   const indexPath = path.join(dataRoot, 'index.json');
   const settingsPath = path.join(dataRoot, 'settings.json');
+  const projectDirName = cleanText(path.basename(path.resolve(dataDir, '..'))) || 'Project';
 
   fs.mkdirSync(deliveriesDir, { recursive: true });
   fs.mkdirSync(sessionsDir, { recursive: true });
@@ -224,7 +241,10 @@ function setupRoutes(app, dataDir) {
       status: 'normal',
       title,
       content,
-      metadata: normalizeMetadata(metadata),
+      metadata: normalizeMetadata(metadata, {
+        project_name: projectDirName,
+        task_name: title,
+      }),
       agent_session_id: agentSessionId || null,
       thread_id: threadId || null,
       alignment_state: alignmentState || null,
@@ -284,6 +304,12 @@ function setupRoutes(app, dataDir) {
     const delivery = readDelivery(deliveryId);
     if (!delivery) return null;
 
+    delivery.metadata = normalizeMetadata(delivery.metadata, {
+      project_name: projectDirName,
+      task_name: delivery.title,
+      audience: delivery.metadata?.audience,
+    });
+
     const feedback = readDeliveryFeedback(deliveryId);
     const drafts = readDeliveryDrafts(deliveryId);
 
@@ -299,7 +325,14 @@ function setupRoutes(app, dataDir) {
     const stored = readJSONObject(settingsPath);
     if (!stored) return DEFAULT_SETTINGS;
 
+    const languageExplicit = stored.language_explicit === true;
+    const language = languageExplicit && SUPPORTED_LANGUAGES.includes(stored.language)
+      ? stored.language
+      : DEFAULT_SETTINGS.language;
+
     return {
+      language,
+      language_explicit: languageExplicit,
       platform: {
         ...DEFAULT_SETTINGS.platform,
         ...(stored.platform || {}),
@@ -857,8 +890,18 @@ function setupRoutes(app, dataDir) {
     try {
       const current = readSettings();
       const input = req.body || {};
+      const requestedLanguage = input.language;
+      const hasLanguageInput = Object.prototype.hasOwnProperty.call(input, 'language');
+      const language = hasLanguageInput && SUPPORTED_LANGUAGES.includes(requestedLanguage)
+        ? requestedLanguage
+        : current.language;
+      const languageExplicit = hasLanguageInput
+        ? SUPPORTED_LANGUAGES.includes(requestedLanguage)
+        : current.language_explicit === true;
 
       const next = {
+        language,
+        language_explicit: languageExplicit,
         platform: {
           ...current.platform,
           ...(input.platform || {}),

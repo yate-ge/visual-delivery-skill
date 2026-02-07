@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import SelectableSurface from '../core/SelectableSurface';
+import { t } from '../../lib/i18n';
 
 function normalizeArray(value) {
   if (Array.isArray(value)) return value;
@@ -68,20 +69,20 @@ function DataView({ component, onCreateInteractive }) {
             onClick={() => setViewMode('table')}
             style={{ ...styles.pillBtn, ...(viewMode === 'table' ? styles.pillBtnActive : {}) }}
           >
-            Table
+            {t('table')}
           </button>
           <button
             onClick={() => setViewMode('list')}
             style={{ ...styles.pillBtn, ...(viewMode === 'list' ? styles.pillBtnActive : {}) }}
           >
-            List
+            {t('list')}
           </button>
         </div>
 
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter rows"
+          placeholder={t('filterRows')}
           style={styles.input}
         />
 
@@ -92,13 +93,13 @@ function DataView({ component, onCreateInteractive }) {
             ))}
           </select>
           <select value={orderDir} onChange={(e) => setOrderDir(e.target.value)} style={styles.select}>
-            <option value="asc">Asc</option>
-            <option value="desc">Desc</option>
+            <option value="asc">{t('asc')}</option>
+            <option value="desc">{t('desc')}</option>
           </select>
         </div>
 
         <button onClick={pushCurrentState} style={styles.secondaryActionBtn}>
-          Add this view state to feedback
+          {t('addViewStateFeedback')}
         </button>
       </div>
 
@@ -222,7 +223,7 @@ function DecisionForm({ component, onCreateInteractive }) {
       </div>
 
       <button onClick={submit} style={styles.secondaryActionBtn}>
-        Add form response to feedback
+        {t('addFormResponseFeedback')}
       </button>
     </div>
   );
@@ -270,7 +271,7 @@ export default function RuntimeRenderer({ uiSpec, onCreateAnnotation, onCreateIn
   if (!uiSpec || components.length === 0) {
     return (
       <div style={styles.empty}>
-        No UI specification components were provided.
+        {t('noUiSpecComponents')}
       </div>
     );
   }

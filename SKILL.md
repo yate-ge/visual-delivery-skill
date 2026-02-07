@@ -22,17 +22,37 @@ DATA_DIR  = {CWD}/.visual-delivery
 ### User-facing output rules
 
 - Keep startup responses concise and task-oriented.
+- Language MUST align with the user's current turn language.
+- If user writes Chinese, all skill output and generated UI text must be Chinese.
+- If user writes English, all skill output and generated UI text must be English.
 - Do NOT output capability menus like "你现在可以 1/2/3" after startup.
 - Do NOT ask open-ended questions like "你想做什么？" after startup.
 - Do NOT append onboarding checklists or "next step menus" unless user explicitly asks for options.
 - After startup, only report readiness + path info (if first run) + remote access choice.
 
+### Language model (required)
+
+- Define `conversation_lang`: follows the user's current input language every turn.
+- Define `platform_lang`: language used by the Visual Delivery web UI.
+- On first initialization, set `platform_lang = conversation_lang` and persist it in `.visual-delivery/data/settings.json`.
+- For later turns, do NOT auto-switch `platform_lang` with conversation language.
+- `platform_lang` can only change when:
+  1) user changes it in Settings page, or
+  2) user explicitly asks to change platform language (then call `PUT /api/settings`).
+- Agent chat replies use `conversation_lang`; generated delivery page text uses `platform_lang`.
+
 ### Step 1: Ensure service is running
 
-Tell user: "Starting Visual Delivery service..."
+Detect interaction language first:
+- Chinese user input -> `lang = zh`
+- otherwise -> `lang = en`
+
+Tell user startup message in matched language:
+- `zh`: "正在启动视觉交付服务..."
+- `en`: "Starting Visual Delivery service..."
 
 ```bash
-node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR}
+node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR} --lang {lang}
 ```
 
 Parse stdout JSON:
@@ -43,18 +63,31 @@ Parse stdout JSON:
 | `already_running` | Continue. |
 | `error` | Tell user the `message` and stop. |
 
-Tell user: "Visual Delivery ready at {local_url}".
+Tell user ready message in matched language:
+- `zh`: "视觉交付服务已就绪：{local_url}"
+- `en`: "Visual Delivery ready at {local_url}".
 
-If `first_run` is true, also tell user: "Design spec initialized at {design_spec_path}".
+If `first_run` is true, also tell user in matched language:
+- `zh`: "设计规范已初始化：{design_spec_path}"
+- `en`: "Design spec initialized at {design_spec_path}".
 
-Immediately ask remote access choice (specific, not open-ended):
+Immediately ask remote access choice in matched language (specific, not open-ended):
 
-> The service is available locally at {local_url}.
-> For external access, choose one:
-> 1) Open network access to port 3847
-> 2) Start a temporary public tunnel (requires `cloudflared`)
->
-> Reply with: `local only` or `start tunnel`.
+- `zh`:
+  > 服务当前可通过本地地址访问：{local_url}
+  > 如需外部访问，请选择：
+  > 1) 开放 3847 端口用于局域网/公网访问
+  > 2) 启动临时公网隧道（需要 `cloudflared`）
+  >
+  > 回复：`仅本地` 或 `启动隧道`
+
+- `en`:
+  > The service is available locally at {local_url}.
+  > For external access, choose one:
+  > 1) Open network access to port 3847
+  > 2) Start a temporary public tunnel (requires `cloudflared`)
+  >
+  > Reply with: `local only` or `start tunnel`.
 
 If user chooses tunnel:
 
@@ -223,7 +256,7 @@ POST /api/alignment/resolve
 GET /api/design-tokens
 ```
 
-- Read/update platform fields (`name`, `logo_url`, `slogan`, `visual_style`):
+- Read/update platform fields (`name`, `logo_url`, `slogan`, `visual_style`) and `language`:
 
 ```bash
 GET /api/settings

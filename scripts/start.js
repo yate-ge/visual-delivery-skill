@@ -8,6 +8,7 @@ const PORT = 3847;           // Avoids conflict with 3000/5173/8080 common dev p
 const HEALTH_TIMEOUT = 15;   // Seconds to wait for server startup
 
 const SKILL_DIR = path.resolve(__dirname, '..');
+const SUPPORTED_LANGS = ['zh', 'en'];
 
 function log(msg) {
   process.stderr.write(`[visual-delivery] ${msg}\n`);
@@ -34,6 +35,20 @@ function parseArgs(argv) {
     }
   }
   return args;
+}
+
+function normalizeLang(lang) {
+  if (typeof lang !== 'string') return null;
+  const v = lang.trim().toLowerCase();
+  if (!v) return null;
+  if (v.startsWith('zh')) return 'zh';
+  if (v.startsWith('en')) return 'en';
+  return SUPPORTED_LANGS.includes(v) ? v : null;
+}
+
+function detectEnvLang() {
+  const envLang = normalizeLang(process.env.LANG || process.env.LC_ALL || process.env.LC_MESSAGES || '');
+  return envLang || 'en';
 }
 
 function isProcessAlive(pid) {
@@ -75,6 +90,7 @@ async function main() {
   const args = parseArgs(process.argv);
   const port = parseInt(args['port']) || PORT;
   const dataDir = path.resolve(args['data-dir'] || path.join(process.cwd(), '.visual-delivery'));
+  const initLang = normalizeLang(args['lang']) || detectEnvLang();
 
   // Check Node.js version
   const nodeVersion = parseInt(process.versions.node.split('.')[0]);
@@ -146,6 +162,26 @@ async function main() {
     // Ensure data dirs exist on subsequent runs
     fs.mkdirSync(path.join(dataDir, 'data', 'deliveries'), { recursive: true });
     fs.mkdirSync(path.join(dataDir, 'logs'), { recursive: true });
+  }
+
+  // Initialize settings.json if missing.
+  // This preserves existing language choices and only bootstraps empty workspaces.
+  const settingsPath = path.join(dataDir, 'data', 'settings.json');
+  if (!fs.existsSync(settingsPath)) {
+    fs.writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        language: initLang,
+        language_explicit: true,
+        platform: {
+          name: 'Visual Delivery',
+          logo_url: '',
+          slogan: 'Turn work into clear decisions.',
+          visual_style: 'executive-brief',
+        },
+      }, null, 2),
+      'utf8'
+    );
   }
 
   // Install server dependencies (if node_modules missing)
@@ -283,6 +319,7 @@ async function main() {
     remote_url: remoteUrl,
     pid: child.pid,
     first_run: firstRun,
+    language: initLang,
     design_spec_path: firstRun ? designSpecPath : undefined
   });
 }

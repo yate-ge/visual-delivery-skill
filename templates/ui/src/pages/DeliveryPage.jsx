@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   fetchDelivery,
@@ -6,6 +6,7 @@ import {
   commitFeedback,
 } from '../lib/api';
 import { eventBus } from '../lib/eventBus';
+import { t } from '../lib/i18n';
 import ContentRenderer from '../components/ContentRenderer';
 import FeedbackSidebar from '../components/feedback/FeedbackSidebar';
 
@@ -13,12 +14,12 @@ function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const min = Math.floor(diff / 60000);
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min} min ago`;
+  if (min < 1) return t('justNow');
+  if (min < 60) return t('minAgo', { n: min });
   const hour = Math.floor(min / 60);
-  if (hour < 24) return `${hour}h ago`;
+  if (hour < 24) return t('hoursAgo', { n: hour });
   const day = Math.floor(hour / 24);
-  return `${day}d ago`;
+  return t('daysAgo', { n: day });
 }
 
 function createDraftItem(item) {
@@ -27,6 +28,13 @@ function createDraftItem(item) {
     id: item.id || `fd_local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     created_at: item.created_at || new Date().toISOString(),
   };
+}
+
+function cleanMetaLabel(value) {
+  const text = String(value || '').trim();
+  if (!text) return '-';
+  if (text === 'Untitled Project' || text === 'Untitled Task') return '-';
+  return text;
 }
 
 export default function DeliveryPage() {
@@ -105,14 +113,9 @@ export default function DeliveryPage() {
     }
   }
 
-  const modeBadgeStyle = useMemo(() => {
-    if (!delivery) return styles.modeTask;
-    return delivery.mode === 'alignment' ? styles.modeAlign : styles.modeTask;
-  }, [delivery]);
-
-  if (loading) return <div style={styles.loading}>Loading...</div>;
-  if (error) return <div style={styles.error}>Error: {error}</div>;
-  if (!delivery) return <div style={styles.error}>Delivery not found</div>;
+  if (loading) return <div style={styles.loading}>{t('loading')}</div>;
+  if (error) return <div style={styles.error}>{t('errorPrefix')}: {error}</div>;
+  if (!delivery) return <div style={styles.error}>{t('deliveryNotFound')}</div>;
 
   const metadata = delivery.metadata || {};
   const pendingCount = (delivery.feedback || []).filter((item) => item.handled === false).length;
@@ -120,27 +123,27 @@ export default function DeliveryPage() {
   return (
     <div style={styles.page}>
       <header style={styles.header}>
-        <Link to="/" style={styles.backLink}>&larr; Back</Link>
+        <Link to="/" style={styles.backLink}>{t('back')}</Link>
         <div style={styles.titleRow}>
           <h1 style={styles.title}>{delivery.title}</h1>
-          <span style={{ ...styles.modeBadge, ...modeBadgeStyle }}>{delivery.mode}</span>
+          {delivery.mode === 'alignment' && <span style={{ ...styles.modeBadge, ...styles.modeAlign }}>{t('alignmentBadge')}</span>}
         </div>
         <div style={styles.metaRow}>
-          <span>Status: {delivery.status}</span>
-          <span>Created {timeAgo(delivery.created_at)}</span>
-          {delivery.mode === 'alignment' && <span>Alignment: {delivery.alignment_state || 'n/a'}</span>}
+          <span>{t('statusLabel')}: {delivery.status}</span>
+          <span>{t('createdLabel')} {timeAgo(delivery.created_at)}</span>
+          {delivery.mode === 'alignment' && <span>{t('alignmentLabel')}: {delivery.alignment_state || t('notAvailable')}</span>}
         </div>
       </header>
 
       <section style={styles.sourceInfo}>
-        <div><strong>Project:</strong> {metadata.project_name || 'Untitled Project'}</div>
-        <div><strong>Task:</strong> {metadata.task_name || 'Untitled Task'}</div>
-        <div><strong>Generated:</strong> {metadata.generated_at || delivery.created_at}</div>
+        <div><strong>{t('projectLabel')}:</strong> {cleanMetaLabel(metadata.project_name)}</div>
+        <div><strong>{t('taskLabel')}:</strong> {cleanMetaLabel(metadata.task_name)}</div>
+        <div><strong>{t('generatedLabel')}:</strong> {metadata.generated_at || delivery.created_at}</div>
       </section>
 
       {delivery.mode === 'alignment' && (
         <div style={styles.alignmentNotice}>
-          This alignment page is decision-focused and can replace previous active alignment in the same session.
+          {t('alignmentNotice')}
         </div>
       )}
 
@@ -153,10 +156,10 @@ export default function DeliveryPage() {
           />
 
           <section style={styles.feedbackState}>
-            <h3 style={styles.feedbackStateTitle}>Feedback Processing State</h3>
+            <h3 style={styles.feedbackStateTitle}>{t('feedbackStateTitle')}</h3>
             <div style={styles.feedbackStateBody}>
-              <div>Pending feedback entries: {pendingCount}</div>
-              <div>Resolved feedback entries: {(delivery.feedback || []).length - pendingCount}</div>
+              <div>{t('pendingFeedbackEntries')}: {pendingCount}</div>
+              <div>{t('resolvedFeedbackEntries')}: {(delivery.feedback || []).length - pendingCount}</div>
             </div>
           </section>
         </main>
@@ -216,11 +219,6 @@ const styles = {
     padding: '3px 10px',
     border: '1px solid transparent',
     fontWeight: '600',
-  },
-  modeTask: {
-    background: '#ECFEFF',
-    color: '#155E75',
-    borderColor: '#A5F3FC',
   },
   modeAlign: {
     background: '#FFFBEB',

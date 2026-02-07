@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../../lib/i18n';
 
 export default function FeedbackSidebar({
   drafts,
@@ -29,32 +30,32 @@ export default function FeedbackSidebar({
   return (
     <aside style={styles.sidebar}>
       <div style={styles.header}>
-        <h3 style={styles.title}>Feedback Sidebar</h3>
-        <div style={styles.count}>{drafts.length} draft</div>
+        <h3 style={styles.title}>{t('feedbackSidebar')}</h3>
+        <div style={styles.count}>{t('draftCount', { n: drafts.length })}</div>
       </div>
 
       <div style={styles.section}>
-        <label style={styles.sectionLabel}>Add direct feedback</label>
+        <label style={styles.sectionLabel}>{t('addDirectFeedback')}</label>
         <textarea
           value={textInput}
           onChange={(e) => setTextInput(e.target.value)}
           rows={3}
-          placeholder="Type feedback for the agent"
+          placeholder={t('typeFeedbackPlaceholder')}
           style={styles.textarea}
         />
         <button onClick={handleAddInteractive} style={styles.secondaryBtn}>
-          Add to Drafts
+          {t('addToDrafts')}
         </button>
       </div>
 
       <div style={styles.section}>
-        <div style={styles.sectionLabel}>Draft items</div>
-        {drafts.length === 0 && <div style={styles.empty}>No draft feedback yet.</div>}
+        <div style={styles.sectionLabel}>{t('draftItems')}</div>
+        {drafts.length === 0 && <div style={styles.empty}>{t('noDraftFeedback')}</div>}
         {drafts.map((item) => (
           <div key={item.id} style={styles.item}>
             <div style={styles.itemTop}>
               <span style={styles.badge}>{item.kind}</span>
-              <button onClick={() => onRemoveDraft(item.id)} style={styles.linkBtn}>Remove</button>
+              <button onClick={() => onRemoveDraft(item.id)} style={styles.linkBtn}>{t('remove')}</button>
             </div>
             <pre style={styles.payload}>{JSON.stringify(item.payload, null, 2)}</pre>
           </div>
@@ -69,13 +70,13 @@ export default function FeedbackSidebar({
           ...(drafts.length === 0 || submitting ? styles.primaryBtnDisabled : {}),
         }}
       >
-        {submitting ? 'Submitting...' : 'Confirm Submit'}
+        {submitting ? t('submitting') : t('confirmSubmit')}
       </button>
 
       <div style={styles.section}>
-        <div style={styles.sectionLabel}>Pending feedback for agent</div>
+        <div style={styles.sectionLabel}>{t('pendingFeedbackForAgent')}</div>
         {pendingFeedback.length === 0 && (
-          <div style={styles.empty}>No pending feedback.</div>
+          <div style={styles.empty}>{t('noPendingFeedback')}</div>
         )}
         {pendingFeedback.map((item) => (
           <div key={item.id} style={styles.pendingItem}>

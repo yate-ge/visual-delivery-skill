@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useDesignTokens } from '../hooks/useDesignTokens';
 import { flattenTokens } from '../lib/theme';
 import { fetchSettings, updateSettings } from '../lib/api';
+import { getLang, setLang, t } from '../lib/i18n';
 
 export default function Settings() {
   const tokens = useDesignTokens();
@@ -14,8 +15,13 @@ export default function Settings() {
 
   useEffect(() => {
     fetchSettings()
-      .then((data) => setSettings(data))
-      .catch((err) => setMessage(`Error loading settings: ${err.message}`));
+      .then((data) => {
+        setSettings({
+          ...data,
+          language: data.language || getLang(),
+        });
+      })
+      .catch((err) => setMessage(t('errorLoadingSettings', { message: err.message })));
   }, []);
 
   async function handleSave() {
@@ -26,15 +32,16 @@ export default function Settings() {
     try {
       const next = await updateSettings(settings);
       setSettings(next);
-      setMessage('Platform settings saved.');
+      setLang(next.language);
+      setMessage(t('settingsSaved'));
     } catch (err) {
-      setMessage(`Save failed: ${err.message}`);
+      setMessage(t('saveFailed', { message: err.message }));
     } finally {
       setSaving(false);
     }
   }
 
-  function updateField(field, value) {
+  function updatePlatformField(field, value) {
     setSettings((prev) => ({
       ...prev,
       platform: {
@@ -44,57 +51,78 @@ export default function Settings() {
     }));
   }
 
+  function updateLanguage(value) {
+    setSettings((prev) => ({
+      ...(prev || {}),
+      language: value,
+      platform: prev?.platform || {},
+    }));
+    setLang(value);
+  }
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <Link to="/" style={styles.backLink}>&larr; Back</Link>
-        <h1 style={styles.title}>Settings</h1>
+        <Link to="/" style={styles.backLink}>{t('back')}</Link>
+        <h1 style={styles.title}>{t('settingsTitle')}</h1>
       </header>
 
       <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Platform Branding</h2>
+        <h2 style={styles.sectionTitle}>{t('platformBranding')}</h2>
         {!settings ? (
-          <p style={styles.description}>Loading settings...</p>
+          <p style={styles.description}>{t('loadingSettings')}</p>
         ) : (
           <div style={styles.form}>
             <label style={styles.label}>
-              Platform Name
+              {t('language')}
+              <select
+                value={settings.language || 'en'}
+                onChange={(e) => updateLanguage(e.target.value)}
+                style={styles.input}
+              >
+                <option value="zh">{t('languageZh')}</option>
+                <option value="en">{t('languageEn')}</option>
+              </select>
+            </label>
+
+            <label style={styles.label}>
+              {t('platformName')}
               <input
                 value={settings.platform?.name || ''}
-                onChange={(e) => updateField('name', e.target.value)}
+                onChange={(e) => updatePlatformField('name', e.target.value)}
                 style={styles.input}
               />
             </label>
 
             <label style={styles.label}>
-              Logo URL
+              {t('logoUrl')}
               <input
                 value={settings.platform?.logo_url || ''}
-                onChange={(e) => updateField('logo_url', e.target.value)}
+                onChange={(e) => updatePlatformField('logo_url', e.target.value)}
                 style={styles.input}
               />
             </label>
 
             <label style={styles.label}>
-              Slogan
+              {t('slogan')}
               <input
                 value={settings.platform?.slogan || ''}
-                onChange={(e) => updateField('slogan', e.target.value)}
+                onChange={(e) => updatePlatformField('slogan', e.target.value)}
                 style={styles.input}
               />
             </label>
 
             <label style={styles.label}>
-              Visual Style
+              {t('visualStyle')}
               <input
                 value={settings.platform?.visual_style || ''}
-                onChange={(e) => updateField('visual_style', e.target.value)}
+                onChange={(e) => updatePlatformField('visual_style', e.target.value)}
                 style={styles.input}
               />
             </label>
 
             <button onClick={handleSave} style={styles.saveBtn} disabled={saving}>
-              {saving ? 'Saving...' : 'Save Platform Settings'}
+              {saving ? t('saving') : t('savePlatformSettings')}
             </button>
             {message && <div style={styles.message}>{message}</div>}
           </div>
@@ -102,7 +130,7 @@ export default function Settings() {
       </section>
 
       <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Design Files</h2>
+        <h2 style={styles.sectionTitle}>{t('designFiles')}</h2>
         <div style={styles.pathList}>
           <code style={styles.path}>.visual-delivery/design/design-spec.md</code>
           <code style={styles.path}>.visual-delivery/design/tokens.json</code>
@@ -110,7 +138,7 @@ export default function Settings() {
       </section>
 
       <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Current Token Values</h2>
+        <h2 style={styles.sectionTitle}>{t('currentTokenValues')}</h2>
         {tokens ? (
           <div style={styles.tokenList}>
             {Object.entries(flatTokens).map(([key, value]) => (
@@ -124,7 +152,7 @@ export default function Settings() {
             ))}
           </div>
         ) : (
-          <p style={styles.description}>Loading design tokens...</p>
+          <p style={styles.description}>{t('loadingDesignTokens')}</p>
         )}
       </section>
     </div>

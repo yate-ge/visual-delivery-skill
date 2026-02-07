@@ -1,79 +1,193 @@
 const locales = {
   en: {
-    appTitle: 'Task Delivery',
+    appTitle: 'Visual Delivery',
     settings: 'Settings',
-    loading: 'Loading deliveries...',
-    noDeliveries: 'No deliveries yet. The agent will create them as needed.',
-    agentWaiting: 'Agent is waiting for your response',
-    all: 'All',
-    passive: 'Passive',
-    interactive: 'Interactive',
-    blocking: 'Blocking',
-    backToList: '\u2190 Back to list',
-    backToDashboard: '\u2190 Back to dashboard',
-    yourFeedback: 'Your Feedback',
-    feedbackSubmitted: 'Feedback submitted',
-    annotations: 'Annotations',
-    addComment: '+ Add Comment',
-    submit: 'Submit',
-    cancel: 'Cancel',
-    addCommentPlaceholder: 'Add a comment...',
+    loadingDeliveries: 'Loading deliveries...',
+    noDeliveries: 'No deliveries yet.',
+    modeAll: 'all',
+    modeTask: 'task_delivery',
+    modeAlignment: 'alignment',
+    activeAlignment: 'Active Alignment',
+    statusPending: 'pending_feedback',
+    statusNormal: 'normal',
     justNow: 'just now',
     minAgo: '{n} min ago',
     hoursAgo: '{n}h ago',
     daysAgo: '{n}d ago',
+    back: '\u2190 Back',
+    statusLabel: 'Status',
+    createdLabel: 'Created',
+    alignmentLabel: 'Alignment',
+    projectLabel: 'Project',
+    taskLabel: 'Task',
+    generatedLabel: 'Generated',
     deliveryNotFound: 'Delivery not found',
-    designSystem: 'Design System',
-    designDesc: 'Edit the design specification or tokens to customize the UI appearance. Changes to tokens.json take effect immediately.',
-    designSpec: 'Design Spec',
-    designTokens: 'Design Tokens',
+    alignmentNotice:
+      'This alignment page is decision-focused and can replace previous active alignment in the same session.',
+    feedbackStateTitle: 'Feedback Processing State',
+    pendingFeedbackEntries: 'Pending feedback entries',
+    resolvedFeedbackEntries: 'Resolved feedback entries',
+    feedbackSidebar: 'Feedback Sidebar',
+    draftCount: '{n} draft',
+    addDirectFeedback: 'Add direct feedback',
+    typeFeedbackPlaceholder: 'Type feedback for the agent',
+    addToDrafts: 'Add to Drafts',
+    draftItems: 'Draft items',
+    noDraftFeedback: 'No draft feedback yet.',
+    remove: 'Remove',
+    submitting: 'Submitting...',
+    confirmSubmit: 'Confirm Submit',
+    pendingFeedbackForAgent: 'Pending feedback for agent',
+    noPendingFeedback: 'No pending feedback.',
+    selectedText: 'Selected text',
+    addFeedbackForSelection: 'Add feedback for this selection',
+    addToSidebar: 'Add to sidebar',
+    close: 'Close',
+    table: 'Table',
+    list: 'List',
+    filterRows: 'Filter rows',
+    asc: 'Asc',
+    desc: 'Desc',
+    addViewStateFeedback: 'Add this view state to feedback',
+    addFormResponseFeedback: 'Add form response to feedback',
+    noUiSpecComponents: 'No UI specification components were provided.',
+    settingsTitle: 'Settings',
+    platformBranding: 'Platform Branding',
+    loadingSettings: 'Loading settings...',
+    language: 'Language',
+    languageZh: 'Chinese',
+    languageEn: 'English',
+    platformName: 'Platform Name',
+    logoUrl: 'Logo URL',
+    slogan: 'Slogan',
+    visualStyle: 'Visual Style',
+    saving: 'Saving...',
+    savePlatformSettings: 'Save Platform Settings',
+    designFiles: 'Design Files',
     currentTokenValues: 'Current Token Values',
-    loadingTokens: 'Loading tokens...',
+    loadingDesignTokens: 'Loading design tokens...',
+    errorLoadingSettings: 'Error loading settings: {message}',
+    saveFailed: 'Save failed: {message}',
+    settingsSaved: 'Platform settings saved.',
+    loading: 'Loading...',
+    errorPrefix: 'Error',
+    inactive: 'inactive',
+    notAvailable: 'n/a',
+    alignmentBadge: 'alignment',
   },
   zh: {
-    appTitle: '\u4efb\u52a1\u4ea4\u4ed8\u5e73\u53f0',
-    settings: '\u8bbe\u7f6e',
-    loading: '\u6b63\u5728\u52a0\u8f7d\u4ea4\u4ed8\u4efb\u52a1...',
-    noDeliveries: '\u6682\u65e0\u4ea4\u4ed8\u4efb\u52a1\u3002Agent \u5b8c\u6210\u4efb\u52a1\u540e\u4f1a\u81ea\u52a8\u521b\u5efa\u3002',
-    agentWaiting: 'Agent \u6b63\u5728\u7b49\u5f85\u60a8\u7684\u56de\u590d',
-    all: '\u5168\u90e8',
-    passive: '\u5c55\u793a',
-    interactive: '\u4ea4\u4e92',
-    blocking: '\u5f85\u51b3\u7b56',
-    backToList: '\u2190 \u8fd4\u56de\u5217\u8868',
-    backToDashboard: '\u2190 \u8fd4\u56de\u4eea\u8868\u76d8',
-    yourFeedback: '\u60a8\u7684\u53cd\u9988',
-    feedbackSubmitted: '\u53cd\u9988\u5df2\u63d0\u4ea4',
-    annotations: '\u6279\u6ce8',
-    addComment: '+ \u6dfb\u52a0\u8bc4\u8bba',
-    submit: '\u63d0\u4ea4',
-    cancel: '\u53d6\u6d88',
-    addCommentPlaceholder: '\u6dfb\u52a0\u8bc4\u8bba...',
-    justNow: '\u521a\u521a',
-    minAgo: '{n} \u5206\u949f\u524d',
-    hoursAgo: '{n} \u5c0f\u65f6\u524d',
-    daysAgo: '{n} \u5929\u524d',
-    deliveryNotFound: '\u4ea4\u4ed8\u4efb\u52a1\u672a\u627e\u5230',
-    designSystem: '\u8bbe\u8ba1\u7cfb\u7edf',
-    designDesc: '\u7f16\u8f91\u8bbe\u8ba1\u89c4\u8303\u6216 tokens \u6765\u81ea\u5b9a\u4e49 UI \u5916\u89c2\u3002\u4fee\u6539 tokens.json \u540e\u7acb\u5373\u751f\u6548\u3002',
-    designSpec: '\u8bbe\u8ba1\u89c4\u8303',
-    designTokens: '\u8bbe\u8ba1 Tokens',
-    currentTokenValues: '\u5f53\u524d Token \u503c',
-    loadingTokens: '\u6b63\u5728\u52a0\u8f7d Tokens...',
-  }
+    appTitle: '视觉交付',
+    settings: '设置',
+    loadingDeliveries: '正在加载交付页面...',
+    noDeliveries: '暂无交付内容。',
+    modeAll: '全部',
+    modeTask: '任务交付',
+    modeAlignment: '对齐确认',
+    activeAlignment: '进行中的对齐',
+    statusPending: '待处理反馈',
+    statusNormal: '正常',
+    justNow: '刚刚',
+    minAgo: '{n} 分钟前',
+    hoursAgo: '{n} 小时前',
+    daysAgo: '{n} 天前',
+    back: '\u2190 返回',
+    statusLabel: '状态',
+    createdLabel: '创建于',
+    alignmentLabel: '对齐状态',
+    projectLabel: '项目',
+    taskLabel: '任务',
+    generatedLabel: '生成时间',
+    deliveryNotFound: '未找到交付内容',
+    alignmentNotice: '该对齐页用于决策确认，同一会话中可替换之前的活动对齐页。',
+    feedbackStateTitle: '反馈处理状态',
+    pendingFeedbackEntries: '待处理反馈条目',
+    resolvedFeedbackEntries: '已处理反馈条目',
+    feedbackSidebar: '反馈侧边栏',
+    draftCount: '{n} 条草稿',
+    addDirectFeedback: '添加直接反馈',
+    typeFeedbackPlaceholder: '输入给 Agent 的反馈',
+    addToDrafts: '加入草稿',
+    draftItems: '草稿条目',
+    noDraftFeedback: '暂无反馈草稿。',
+    remove: '移除',
+    submitting: '提交中...',
+    confirmSubmit: '确认提交',
+    pendingFeedbackForAgent: '待 Agent 处理的反馈',
+    noPendingFeedback: '暂无待处理反馈。',
+    selectedText: '已选中文本',
+    addFeedbackForSelection: '为这段选中文本添加反馈',
+    addToSidebar: '加入侧边栏',
+    close: '关闭',
+    table: '表格',
+    list: '列表',
+    filterRows: '筛选行',
+    asc: '升序',
+    desc: '降序',
+    addViewStateFeedback: '将当前视图状态加入反馈',
+    addFormResponseFeedback: '将表单回答加入反馈',
+    noUiSpecComponents: '未提供可渲染的 UI 组件。',
+    settingsTitle: '设置',
+    platformBranding: '平台品牌信息',
+    loadingSettings: '正在加载设置...',
+    language: '界面语言',
+    languageZh: '中文',
+    languageEn: '英文',
+    platformName: '平台名称',
+    logoUrl: 'Logo 地址',
+    slogan: '标语',
+    visualStyle: '视觉风格',
+    saving: '保存中...',
+    savePlatformSettings: '保存平台设置',
+    designFiles: '设计文件',
+    currentTokenValues: '当前 Token 值',
+    loadingDesignTokens: '正在加载设计 Token...',
+    errorLoadingSettings: '加载设置失败：{message}',
+    saveFailed: '保存失败：{message}',
+    settingsSaved: '平台设置已保存。',
+    loading: '加载中...',
+    errorPrefix: '错误',
+    inactive: '未激活',
+    notAvailable: '无',
+    alignmentBadge: '对齐',
+  },
 };
 
-let currentLang = 'en';
+function normalizeLang(lang) {
+  if (!lang || typeof lang !== 'string') return 'en';
+  return lang.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+}
+
+function detectPreferredLang() {
+  if (typeof document !== 'undefined') {
+    const docLang = document.documentElement?.lang;
+    if (docLang) return normalizeLang(docLang);
+  }
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    return normalizeLang(navigator.language);
+  }
+  return 'en';
+}
+
+let currentLang = detectPreferredLang();
 
 export function setLang(lang) {
-  currentLang = locales[lang] ? lang : 'en';
+  currentLang = normalizeLang(lang);
+}
+
+export function initLang(lang) {
+  setLang(lang || detectPreferredLang());
+  return currentLang;
 }
 
 export function t(key, params = {}) {
   const str = (locales[currentLang] && locales[currentLang][key]) || locales.en[key] || key;
-  return str.replace(/\{(\w+)\}/g, (_, k) => params[k] !== undefined ? params[k] : `{${k}}`);
+  return str.replace(/\{(\w+)\}/g, (_, k) => (params[k] !== undefined ? params[k] : `{${k}}`));
 }
 
 export function getLang() {
   return currentLang;
+}
+
+export function isZh() {
+  return currentLang === 'zh';
 }

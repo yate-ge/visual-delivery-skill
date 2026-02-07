@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { t } from '../../lib/i18n';
 
 export default function SelectableSurface({ componentId, onCreateAnnotation, children }) {
   const rootRef = useRef(null);
@@ -69,19 +70,19 @@ export default function SelectableSurface({ componentId, onCreateAnnotation, chi
       {children}
 
       {selectionState && (
-        <div style={{ ...styles.toolbar, left: selectionState.x, top: selectionState.y }}>
-          <div style={styles.toolbarTitle}>Selected text</div>
+          <div style={{ ...styles.toolbar, left: selectionState.x, top: selectionState.y }}>
+          <div style={styles.toolbarTitle}>{t('selectedText')}</div>
           <div style={styles.selectedText}>{selectionState.selectedText}</div>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Add feedback for this selection"
+            placeholder={t('addFeedbackForSelection')}
             rows={2}
             style={styles.textarea}
           />
           <div style={styles.actions}>
-            <button onClick={handleSubmit} style={styles.submitBtn}>Add to sidebar</button>
-            <button onClick={dismissToolbar} style={styles.cancelBtn}>Close</button>
+            <button onClick={handleSubmit} style={styles.submitBtn}>{t('addToSidebar')}</button>
+            <button onClick={dismissToolbar} style={styles.cancelBtn}>{t('close')}</button>
           </div>
         </div>
       )}

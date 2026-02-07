@@ -1,18 +1,30 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDeliveries } from '../hooks/useDeliveries';
+import { t } from '../lib/i18n';
 
 const MODE_FILTERS = ['all', 'task_delivery', 'alignment'];
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const min = Math.floor(diff / 60000);
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min} min ago`;
+  if (min < 1) return t('justNow');
+  if (min < 60) return t('minAgo', { n: min });
   const hour = Math.floor(min / 60);
-  if (hour < 24) return `${hour}h ago`;
+  if (hour < 24) return t('hoursAgo', { n: hour });
   const day = Math.floor(hour / 24);
-  return `${day}d ago`;
+  return t('daysAgo', { n: day });
+}
+
+function modeLabel(mode) {
+  if (mode === 'task_delivery') return t('modeTask');
+  if (mode === 'alignment') return t('modeAlignment');
+  return t('modeAll');
+}
+
+function statusLabel(status) {
+  if (status === 'pending_feedback') return t('statusPending');
+  return t('statusNormal');
 }
 
 export default function Dashboard() {
@@ -35,13 +47,13 @@ export default function Dashboard() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.title}>Visual Delivery</h1>
-        <Link to="/settings" style={styles.settingsLink}>Settings</Link>
+        <h1 style={styles.title}>{t('appTitle')}</h1>
+        <Link to="/settings" style={styles.settingsLink}>{t('settings')}</Link>
       </header>
 
       {activeAlignment && (
         <div style={styles.alignmentBanner}>
-          <div style={styles.bannerTitle}>Active Alignment</div>
+          <div style={styles.bannerTitle}>{t('activeAlignment')}</div>
           <Link to={`/d/${activeAlignment.id}`} style={styles.bannerLink}>
             {activeAlignment.title}
           </Link>
@@ -58,16 +70,16 @@ export default function Dashboard() {
               ...(filter === mode ? styles.filterBtnActive : {}),
             }}
           >
-            {mode}
+            {modeLabel(mode)}
           </button>
         ))}
       </div>
 
-      {loading && <div style={styles.empty}>Loading deliveries...</div>}
+      {loading && <div style={styles.empty}>{t('loadingDeliveries')}</div>}
       {error && <div style={styles.error}>Error: {error}</div>}
 
       {!loading && filtered.length === 0 && (
-        <div style={styles.empty}>No deliveries yet.</div>
+        <div style={styles.empty}>{t('noDeliveries')}</div>
       )}
 
       <div style={styles.list}>
@@ -81,13 +93,13 @@ export default function Dashboard() {
                   ...(delivery.status === 'pending_feedback' ? styles.pending : styles.normal),
                 }}
               >
-                {delivery.status}
+                {statusLabel(delivery.status)}
               </span>
             </div>
 
             <div style={styles.cardMeta}>
-              <span>{delivery.mode}</span>
-              {delivery.mode === 'alignment' && <span>{delivery.alignment_state || 'inactive'}</span>}
+              <span>{modeLabel(delivery.mode)}</span>
+              {delivery.mode === 'alignment' && <span>{delivery.alignment_state || t('inactive')}</span>}
               <span>{timeAgo(delivery.created_at)}</span>
             </div>
           </Link>
