@@ -23,43 +23,12 @@ function timeAgo(dateStr) {
   return t('daysAgo', { n: day });
 }
 
-function formatLocalDateTime(dateStr) {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return String(dateStr);
-
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).format(date);
-}
-
 function createDraftItem(item) {
   return {
     ...item,
     id: item.id || `fd_local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     created_at: item.created_at || new Date().toISOString(),
   };
-}
-
-function cleanMetaLabel(value) {
-  const text = String(value || '').trim();
-  if (!text) return '-';
-  if (text === 'Untitled Project' || text === 'Untitled Task') return '-';
-  return text;
-}
-
-function stageLabel(stage) {
-  if (stage === 'queued') return t('stageQueued');
-  if (stage === 'in_progress') return t('stageInProgress');
-  if (stage === 'completed') return t('stageCompleted');
-  if (stage === 'failed') return t('stageFailed');
-  return t('stageInfo');
 }
 
 export default function DeliveryPage() {
@@ -98,12 +67,10 @@ export default function DeliveryPage() {
 
     eventBus.on('feedback_received', onDeliveryUpdate);
     eventBus.on('update_delivery', onDeliveryUpdate);
-    eventBus.on('execution_events_updated', onDeliveryUpdate);
 
     return () => {
       eventBus.off('feedback_received', onDeliveryUpdate);
       eventBus.off('update_delivery', onDeliveryUpdate);
-      eventBus.off('execution_events_updated', onDeliveryUpdate);
     };
   }, [id, load]);
 
@@ -145,11 +112,6 @@ export default function DeliveryPage() {
   if (error) return <div style={styles.error}>{t('errorPrefix')}: {error}</div>;
   if (!delivery) return <div style={styles.error}>{t('deliveryNotFound')}</div>;
 
-  const metadata = delivery.metadata || {};
-  const pendingCount = (delivery.feedback || []).filter((item) => item.handled === false).length;
-  const executionEvents = [...(delivery.execution_events || [])]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
   return (
     <div style={styles.page}>
       <header style={styles.header}>
@@ -165,12 +127,6 @@ export default function DeliveryPage() {
         </div>
       </header>
 
-      <section style={styles.sourceInfo}>
-        <div><strong>{t('projectLabel')}:</strong> {cleanMetaLabel(metadata.project_name)}</div>
-        <div><strong>{t('taskLabel')}:</strong> {cleanMetaLabel(metadata.task_name)}</div>
-        <div><strong>{t('generatedLabel')}:</strong> {formatLocalDateTime(metadata.generated_at || delivery.created_at)}</div>
-      </section>
-
       {delivery.mode === 'alignment' && (
         <div style={styles.alignmentNotice}>
           {t('alignmentNotice')}
@@ -185,46 +141,6 @@ export default function DeliveryPage() {
             onCreateAnnotation={addDraftItem}
             onCreateInteractive={addDraftItem}
           />
-
-          <section style={styles.feedbackState}>
-            <h3 style={styles.feedbackStateTitle}>{t('feedbackStateTitle')}</h3>
-            <div style={styles.feedbackStateBody}>
-              <div>{t('pendingFeedbackEntries')}: {pendingCount}</div>
-              <div>{t('resolvedFeedbackEntries')}: {(delivery.feedback || []).length - pendingCount}</div>
-            </div>
-          </section>
-
-          <section style={styles.timelineSection}>
-            <h3 style={styles.feedbackStateTitle}>{t('executionTimelineTitle')}</h3>
-            {executionEvents.length === 0 && (
-              <div style={styles.timelineEmpty}>{t('noExecutionEvents')}</div>
-            )}
-            {executionEvents.map((event) => (
-              <div key={event.id} style={styles.timelineItem}>
-                <div style={styles.timelineTop}>
-                  <span style={{
-                    ...styles.stageBadge,
-                    ...(event.stage === 'completed'
-                      ? styles.stageCompleted
-                      : event.stage === 'failed'
-                        ? styles.stageFailed
-                        : event.stage === 'in_progress'
-                          ? styles.stageInProgress
-                          : styles.stageQueued),
-                  }}
-                  >
-                    {stageLabel(event.stage)}
-                  </span>
-                  <span style={styles.timelineTime}>{timeAgo(event.created_at)}</span>
-                </div>
-                <div style={styles.timelineMessage}>{event.message}</div>
-                <div style={styles.timelineMeta}>
-                  <span>{event.actor || 'system'}</span>
-                  {event.feedback_id && <span>{event.feedback_id}</span>}
-                </div>
-              </div>
-            ))}
-          </section>
         </main>
 
         <FeedbackSidebar
@@ -294,17 +210,6 @@ const styles = {
     fontSize: '14px',
     color: 'var(--vds-colors-text-secondary)',
   },
-  sourceInfo: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: '8px',
-    padding: '12px',
-    border: '1px solid var(--vds-colors-border)',
-    borderRadius: '12px',
-    background: 'var(--vds-colors-surface)',
-    marginBottom: '14px',
-    fontSize: '14px',
-  },
   alignmentNotice: {
     border: '1px solid #FCD34D',
     background: '#FFFBEB',
@@ -323,93 +228,5 @@ const styles = {
   main: {
     minWidth: 0,
     flex: '1 1 680px',
-  },
-  feedbackState: {
-    marginTop: '14px',
-    border: '1px solid var(--vds-colors-border)',
-    borderRadius: '12px',
-    background: 'var(--vds-colors-surface)',
-    padding: '12px',
-  },
-  feedbackStateTitle: {
-    fontSize: '15px',
-    marginBottom: '8px',
-  },
-  feedbackStateBody: {
-    display: 'flex',
-    gap: '12px',
-    fontSize: '14px',
-    color: 'var(--vds-colors-text-secondary)',
-  },
-  timelineSection: {
-    marginTop: '14px',
-    border: '1px solid var(--vds-colors-border)',
-    borderRadius: '12px',
-    background: 'var(--vds-colors-surface)',
-    padding: '12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  timelineEmpty: {
-    fontSize: '13px',
-    color: 'var(--vds-colors-text-secondary)',
-  },
-  timelineItem: {
-    border: '1px solid var(--vds-colors-border)',
-    borderRadius: '8px',
-    background: 'white',
-    padding: '10px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  timelineTop: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  stageBadge: {
-    borderRadius: '999px',
-    padding: '2px 8px',
-    fontSize: '12px',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    border: '1px solid transparent',
-  },
-  stageQueued: {
-    background: '#EEF2FF',
-    color: '#3730A3',
-    borderColor: '#C7D2FE',
-  },
-  stageInProgress: {
-    background: '#FEF3C7',
-    color: '#92400E',
-    borderColor: '#FDE68A',
-  },
-  stageCompleted: {
-    background: '#ECFDF5',
-    color: '#065F46',
-    borderColor: '#6EE7B7',
-  },
-  stageFailed: {
-    background: '#FEF2F2',
-    color: '#991B1B',
-    borderColor: '#FCA5A5',
-  },
-  timelineTime: {
-    fontSize: '12px',
-    color: 'var(--vds-colors-text-secondary)',
-  },
-  timelineMessage: {
-    fontSize: '14px',
-    color: 'var(--vds-colors-text)',
-    lineHeight: '1.45',
-  },
-  timelineMeta: {
-    display: 'flex',
-    gap: '10px',
-    fontSize: '12px',
-    color: 'var(--vds-colors-text-secondary)',
   },
 };

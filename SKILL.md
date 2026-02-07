@@ -111,8 +111,9 @@ Pipeline:
 1. **Requirement Analysis**: define goals, audience, key decision points.
 2. **Design Planning**: choose layout, visual style, interaction strategy. Read design tokens from `GET /api/design-tokens` and use `var(--vds-*)` CSS variables.
 3. **HTML Generation**: produce a full `<!DOCTYPE html>` page with inline CSS and JS. See [references/generative-ui-guide.md](references/generative-ui-guide.md) for rules.
-4. **Feedback Hooks**: embed interactive feedback elements using `data-vd-feedback-*` attributes. Annotation feedback (text selection) is automatic — no agent action needed.
-5. **Publish**: POST to `/api/deliveries`.
+4. **Feedback Hooks (REQUIRED)**: every page MUST embed at least one interactive feedback element using `data-vd-feedback-*` attributes. These must be visually prominent, dedicated buttons or forms — not hidden or attached to content elements. See [references/generative-ui-guide.md#feedback-requirements](references/generative-ui-guide.md#feedback-requirements) for patterns. Annotation feedback (text selection) is automatic — no agent action needed.
+5. **Self-check**: before publishing, verify the HTML contains at least one element with `data-vd-feedback-action`. If none exists, go back to step 4.
+6. **Publish**: POST to `/api/deliveries`.
 
 Core principles:
 
@@ -123,6 +124,8 @@ Core principles:
 - **Allowed CDNs**: Tailwind CSS (`https://cdn.tailwindcss.com`), Chart.js, Mermaid, D3.js, Highlight.js, and similar visualization/utility libraries.
 - **Responsive**: support desktop and mobile viewports.
 - **No placeholders**: every element must be functional with real data.
+- **Mandatory feedback UI**: every page MUST contain `data-vd-feedback-*` buttons or forms. A page without them is incomplete. Use per-item buttons for review lists, global forms for overall decisions.
+- **Feedback UI separation**: `data-vd-feedback-*` attributes must ONLY be on dedicated feedback buttons/forms, never on content interaction elements (expandable sections, cards, tabs). See [references/generative-ui-guide.md](references/generative-ui-guide.md) for patterns and anti-patterns.
 
 Interactive feedback elements (agent embeds in HTML):
 
