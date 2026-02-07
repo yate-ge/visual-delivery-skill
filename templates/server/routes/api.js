@@ -3,6 +3,7 @@ const path = require('path');
 const { generateId } = require('../lib/ids');
 const { writeJSON, readJSONArray, readJSONObject, updateJSON } = require('../lib/store');
 const { broadcast } = require('../lib/ws');
+const { nowLocalISO, ensureLocalISO } = require('../lib/time');
 
 const DELIVERY_MODES = ['task_delivery', 'alignment'];
 const DELIVERY_STATUSES = ['normal', 'pending_feedback'];
@@ -43,7 +44,7 @@ function normalizeMetadata(metadata = {}, fallback = {}) {
   return {
     project_name: projectName || null,
     task_name: taskName || null,
-    generated_at: metadata.generated_at || new Date().toISOString(),
+    generated_at: ensureLocalISO(metadata.generated_at, nowLocalISO()),
     audience,
   };
 }
@@ -126,6 +127,10 @@ function setupRoutes(app, dataDir) {
     return readJSONArray(deliveryFile(deliveryId, 'drafts.json'));
   }
 
+  function readDeliveryExecutionEvents(deliveryId) {
+    return readJSONArray(deliveryFile(deliveryId, 'execution-events.json'));
+  }
+
   async function writeDelivery(delivery) {
     await writeJSON(deliveryFile(delivery.id, 'delivery.json'), delivery);
   }
@@ -137,7 +142,7 @@ function setupRoutes(app, dataDir) {
     const feedbackItems = readDeliveryFeedback(deliveryId);
     const hasUnhandled = feedbackItems.some((item) => item.handled === false);
     delivery.status = hasUnhandled ? 'pending_feedback' : 'normal';
-    delivery.updated_at = new Date().toISOString();
+    delivery.updated_at = nowLocalISO();
 
     await writeDelivery(delivery);
     await updateIndex(delivery);
@@ -165,6 +170,82 @@ function setupRoutes(app, dataDir) {
       handled_by: null,
       created_at: now,
     };
+  }
+
+  function truncateText(text, max = 120) {
+    if (typeof text !== 'string') return '';
+    if (text.length <= max) return text;
+    return `${text.slice(0, max - 1)}…`;
+  }
+
+  function summarizeFeedbackPayload(item) {
+    if (!item || !item.payload) return '';
+    const payload = item.payload;
+
+    if (typeof payload.text === 'string' && payload.text.trim()) {
+      return truncateText(payload.text.trim());
+    }
+
+    if (typeof payload.selected_text === 'string' && payload.selected_text.trim()) {
+      return truncateText(`Selection: ${payload.selected_text.trim()}`);
+    }
+
+    if (payload.action === 'review_decision') {
+      const itemId = payload.item_id || 'unknown';
+      const decision = payload.decision || 'unknown';
+      const notes = typeof payload.notes === 'string' && payload.notes.trim()
+        ? ` (${truncateText(payload.notes.trim(), 60)})`
+        : '';
+      return `Review decision ${itemId}: ${decision}${notes}`;
+    }
+
+    return truncateText(JSON.stringify(payload));
+  }
+
+  function normalizeExecutionEvent(event, now) {
+    const allowedStages = ['queued', 'in_progress', 'completed', 'failed', 'info'];
+    const stage = allowedStages.includes(event.stage) ? event.stage : 'info';
+
+    return {
+      id: event.id || generateId('e'),
+      feedback_id: event.feedback_id || null,
+      stage,
+      message: cleanText(event.message) || 'Execution event',
+      actor: cleanText(event.actor) || 'system',
+      meta: event.meta && typeof event.meta === 'object' ? event.meta : {},
+      created_at: event.created_at || now,
+    };
+  }
+
+  async function appendExecutionEvents(deliveryId, rawEvents) {
+    const delivery = readDelivery(deliveryId);
+    if (!delivery) return [];
+
+    const now = nowLocalISO();
+    const events = (Array.isArray(rawEvents) ? rawEvents : [rawEvents])
+      .filter((item) => item && typeof item === 'object')
+      .map((event) => normalizeExecutionEvent(event, now));
+
+    if (events.length === 0) return [];
+
+    await updateJSON(
+      deliveryFile(deliveryId, 'execution-events.json'),
+      (existing) => [...existing, ...events],
+      []
+    );
+
+    delivery.updated_at = now;
+    await writeDelivery(delivery);
+    const indexEntry = await updateIndex(delivery);
+
+    broadcast('update_delivery', indexEntry);
+    broadcast('execution_events_updated', {
+      delivery_id: deliveryId,
+      count: events.length,
+      latest_event_id: events[events.length - 1].id,
+    });
+
+    return events;
   }
 
   async function archiveActiveAlignment(agentSessionId, activeRecord, terminalState, reason, endedAt) {
@@ -199,7 +280,7 @@ function setupRoutes(app, dataDir) {
       };
     }
 
-    const now = new Date().toISOString();
+    const now = nowLocalISO();
     const delivery = readDelivery(activeRecord.delivery_id);
     if (delivery) {
       delivery.alignment_state = terminalState;
@@ -231,7 +312,7 @@ function setupRoutes(app, dataDir) {
 
   async function createDeliveryRecord({ mode, title, content, metadata, agentSessionId, threadId, alignmentState }) {
     const id = generateId('d');
-    const now = new Date().toISOString();
+    const now = nowLocalISO();
 
     fs.mkdirSync(deliveryDir(id), { recursive: true });
 
@@ -255,6 +336,7 @@ function setupRoutes(app, dataDir) {
     await writeDelivery(delivery);
     await writeJSON(deliveryFile(id, 'feedback.json'), []);
     await writeJSON(deliveryFile(id, 'drafts.json'), []);
+    await writeJSON(deliveryFile(id, 'execution-events.json'), []);
     await appendIndex(delivery);
 
     broadcast('new_delivery', mapIndexEntry(delivery));
@@ -284,7 +366,7 @@ function setupRoutes(app, dataDir) {
       alignmentState: 'active',
     });
 
-    const now = new Date().toISOString();
+    const now = nowLocalISO();
     await writeJSON(activeAlignmentPath(agentSessionId), {
       agent_session_id: agentSessionId,
       thread_id: threadId,
@@ -312,11 +394,13 @@ function setupRoutes(app, dataDir) {
 
     const feedback = readDeliveryFeedback(deliveryId);
     const drafts = readDeliveryDrafts(deliveryId);
+    const executionEvents = readDeliveryExecutionEvents(deliveryId);
 
     return {
       ...delivery,
       feedback,
       drafts,
+      execution_events: executionEvents,
       pending_feedback_count: feedback.filter((item) => item.handled === false).length,
     };
   }
@@ -472,6 +556,67 @@ function setupRoutes(app, dataDir) {
     }
   });
 
+  // List execution events for a delivery
+  app.get('/api/deliveries/:id/execution-events', (req, res) => {
+    try {
+      const delivery = readDelivery(req.params.id);
+      if (!delivery) {
+        return res.status(404).json({
+          error: { code: 'NOT_FOUND', message: `Delivery ${req.params.id} not found` },
+        });
+      }
+
+      const events = readDeliveryExecutionEvents(req.params.id);
+      res.json({
+        delivery_id: req.params.id,
+        events,
+      });
+    } catch (err) {
+      console.error('Error getting execution events:', err);
+      res.status(500).json({
+        error: { code: 'INTERNAL_ERROR', message: err.message },
+      });
+    }
+  });
+
+  // Append execution events for a delivery
+  app.post('/api/deliveries/:id/execution-events', async (req, res) => {
+    try {
+      const deliveryId = req.params.id;
+      const delivery = readDelivery(deliveryId);
+      if (!delivery) {
+        return res.status(404).json({
+          error: { code: 'NOT_FOUND', message: `Delivery ${deliveryId} not found` },
+        });
+      }
+
+      const body = req.body || {};
+      const inputEvents = Array.isArray(body.events)
+        ? body.events
+        : body.event
+          ? [body.event]
+          : [body];
+
+      const appended = await appendExecutionEvents(deliveryId, inputEvents);
+      if (appended.length === 0) {
+        return res.status(400).json({
+          error: { code: 'INVALID_REQUEST', message: 'No valid execution events provided' },
+        });
+      }
+
+      res.status(201).json({
+        delivery_id: deliveryId,
+        event_ids: appended.map((item) => item.id),
+        count: appended.length,
+      });
+    } catch (err) {
+      console.error('Error appending execution events:', err);
+      res.status(500).json({
+        error: { code: 'INTERNAL_ERROR', message: err.message },
+      });
+    }
+  });
+
   // Save draft feedback (sidebar staging)
   app.post('/api/deliveries/:id/feedback/draft', async (req, res) => {
     try {
@@ -489,7 +634,7 @@ function setupRoutes(app, dataDir) {
         });
       }
 
-      const now = new Date().toISOString();
+      const now = nowLocalISO();
       const drafts = items.map((item) => normalizeFeedbackDraftItem(item, now));
       await writeJSON(deliveryFile(req.params.id, 'drafts.json'), drafts);
 
@@ -526,7 +671,7 @@ function setupRoutes(app, dataDir) {
         });
       }
 
-      const now = new Date().toISOString();
+      const now = nowLocalISO();
       const newFeedbackItems = items.map((item) => normalizeFeedbackItem(item, now));
       const feedbackPath = deliveryFile(deliveryId, 'feedback.json');
 
@@ -546,6 +691,20 @@ function setupRoutes(app, dataDir) {
         count: newFeedbackItems.length,
       });
       broadcast('update_delivery', indexEntry);
+
+      await appendExecutionEvents(
+        deliveryId,
+        newFeedbackItems.map((item) => ({
+          feedback_id: item.id,
+          stage: 'queued',
+          actor: 'user',
+          message: `Feedback submitted (${item.kind}): ${summarizeFeedbackPayload(item) || 'No details'}`,
+          meta: {
+            kind: item.kind,
+            target: item.target || null,
+          },
+        }))
+      );
 
       res.status(201).json({
         delivery_id: deliveryId,
@@ -581,8 +740,9 @@ function setupRoutes(app, dataDir) {
         });
       }
 
-      const now = new Date().toISOString();
+      const now = nowLocalISO();
       let resolvedCount = 0;
+      const resolvedItems = [];
 
       const feedbackPath = deliveryFile(deliveryId, 'feedback.json');
       await updateJSON(
@@ -593,6 +753,7 @@ function setupRoutes(app, dataDir) {
           }
 
           resolvedCount += 1;
+          resolvedItems.push(item);
           return {
             ...item,
             handled: true,
@@ -607,6 +768,21 @@ function setupRoutes(app, dataDir) {
       const indexEntry = mapIndexEntry(updatedDelivery);
 
       broadcast('update_delivery', indexEntry);
+
+      if (resolvedItems.length > 0) {
+        await appendExecutionEvents(
+          deliveryId,
+          resolvedItems.map((item) => ({
+            feedback_id: item.id,
+            stage: 'completed',
+            actor: handledBy || 'agent',
+            message: `Feedback resolved (${item.kind}): ${summarizeFeedbackPayload(item) || 'No details'}`,
+            meta: {
+              handled_by: handledBy || 'agent',
+            },
+          }))
+        );
+      }
 
       res.status(200).json({
         delivery_id: deliveryId,
@@ -639,7 +815,7 @@ function setupRoutes(app, dataDir) {
         });
       }
 
-      const now = new Date().toISOString();
+      const now = nowLocalISO();
       const draftItem = normalizeFeedbackDraftItem(
         {
           kind: 'annotation',
@@ -775,7 +951,7 @@ function setupRoutes(app, dataDir) {
         });
       }
 
-      const now = new Date().toISOString();
+      const now = nowLocalISO();
       activeRecord.last_heartbeat_at = now;
       await writeJSON(activePath, activeRecord);
 

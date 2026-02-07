@@ -9,6 +9,22 @@ function normalizeArray(value) {
   return [];
 }
 
+function withComponentProps(component) {
+  if (!component || typeof component !== 'object') return component;
+  const next = { ...component };
+  if (component.props && typeof component.props === 'object') {
+    Object.assign(next, component.props);
+  }
+  if (component.data && typeof component.data === 'object') {
+    Object.assign(next, component.data);
+  }
+  return next;
+}
+
+function getColumnLabel(column) {
+  return column?.label || column?.header || column?.key || '';
+}
+
 function DataView({ component, onCreateInteractive }) {
   const rows = normalizeArray(component.rows);
   const columns = normalizeArray(component.columns);
@@ -89,7 +105,7 @@ function DataView({ component, onCreateInteractive }) {
         <div style={styles.row}>
           <select value={orderKey} onChange={(e) => setOrderKey(e.target.value)} style={styles.select}>
             {columns.map((column) => (
-              <option key={column.key} value={column.key}>{column.label || column.key}</option>
+              <option key={column.key} value={column.key}>{getColumnLabel(column)}</option>
             ))}
           </select>
           <select value={orderDir} onChange={(e) => setOrderDir(e.target.value)} style={styles.select}>
@@ -109,7 +125,7 @@ function DataView({ component, onCreateInteractive }) {
             <thead>
               <tr>
                 {columns.map((column) => (
-                  <th key={column.key} style={styles.th}>{column.label || column.key}</th>
+                  <th key={column.key} style={styles.th}>{getColumnLabel(column)}</th>
                 ))}
               </tr>
             </thead>
@@ -130,7 +146,7 @@ function DataView({ component, onCreateInteractive }) {
             <div key={`${component.id}-list-${idx}`} style={styles.listItem}>
               {columns.map((column) => (
                 <div key={`${component.id}-${column.key}-${idx}`} style={styles.listField}>
-                  <strong>{column.label || column.key}:</strong> {String(row[column.key] ?? '')}
+                  <strong>{getColumnLabel(column)}:</strong> {String(row[column.key] ?? '')}
                 </div>
               ))}
             </div>
@@ -230,9 +246,10 @@ function DecisionForm({ component, onCreateInteractive }) {
 }
 
 function MarkdownBlock({ component }) {
+  const content = component.content || component.body || '';
   return (
     <div style={styles.cardBody}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{component.content || ''}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );
 }
@@ -251,22 +268,274 @@ function MetricGrid({ component }) {
   );
 }
 
+function StatsBar({ component }) {
+  const items = normalizeArray(component.items);
+  return (
+    <div style={styles.cardBody}>
+      <div style={styles.statsBarGrid}>
+        {items.map((item, idx) => (
+          <div key={`${component.id}-stat-${idx}`} style={styles.statsBarItem}>
+            <div style={styles.statsBarLabel}>{item.label}</div>
+            <div style={styles.statsBarValue}>{item.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HeroBanner({ component }) {
+  return (
+    <div style={styles.heroBanner}>
+      <h2 style={styles.heroTitle}>{component.title || ''}</h2>
+      {component.subtitle && <p style={styles.heroSubtitle}>{component.subtitle}</p>}
+      {component.description && <p style={styles.heroDescription}>{component.description}</p>}
+    </div>
+  );
+}
+
+function SectionHeader({ component }) {
+  const subtitle = component.subtitle || component.description;
+  return (
+    <div style={styles.cardBody}>
+      <h3 style={styles.sectionHeaderTitle}>{component.title || ''}</h3>
+      {subtitle && <p style={styles.sectionHeaderSubtitle}>{subtitle}</p>}
+      {component.divider && <div style={styles.sectionDivider} />}
+    </div>
+  );
+}
+
+function CalloutBox({ component }) {
+  return (
+    <div style={styles.cardBody}>
+      <div style={styles.calloutBox}>
+        {component.title && <h4 style={styles.calloutTitle}>{component.title}</h4>}
+        {component.content && <p style={styles.calloutContent}>{component.content}</p>}
+      </div>
+    </div>
+  );
+}
+
+function CardGrid({ component }) {
+  const cards = normalizeArray(component.cards);
+  const columns = Number(component.columns) > 0 ? Number(component.columns) : 2;
+
+  return (
+    <div style={styles.cardBody}>
+      <div style={{ ...styles.dynamicCardGrid, gridTemplateColumns: `repeat(${columns}, minmax(180px, 1fr))` }}>
+        {cards.map((card, idx) => (
+          <article key={`${component.id}-card-${idx}`} style={styles.dynamicCard}>
+            {card.title && <h4 style={styles.dynamicCardTitle}>{card.title}</h4>}
+            {card.description && <p style={styles.dynamicCardDesc}>{card.description}</p>}
+            {normalizeArray(card.items).length > 0 && (
+              <ul style={styles.dynamicCardList}>
+                {normalizeArray(card.items).map((item, itemIdx) => (
+                  <li key={`${component.id}-card-${idx}-item-${itemIdx}`} style={styles.dynamicCardListItem}>
+                    {String(item)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FeatureBlock({ component }) {
+  return (
+    <div style={styles.cardBody}>
+      <div style={styles.featureBlock}>
+        <div style={styles.featureTop}>
+          {component.number && <span style={styles.featureNumber}>{component.number}</span>}
+          <h4 style={styles.featureTitle}>{component.title || ''}</h4>
+        </div>
+        {component.description && <p style={styles.featureDescription}>{component.description}</p>}
+        {normalizeArray(component.highlights).length > 0 && (
+          <div style={styles.featureHighlights}>
+            {normalizeArray(component.highlights).map((item, idx) => (
+              <div key={`${component.id}-highlight-${idx}`} style={styles.featureHighlightItem}>
+                <strong>{item.label || ''}</strong>
+                <span>{item.value || ''}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReviewTable({ component, onCreateInteractive }) {
+  const rows = normalizeArray(component.rows);
+  const decisionOptions = normalizeArray(component.decision_options).length > 0
+    ? normalizeArray(component.decision_options)
+    : ['confirm', 'reject', 'change_request'];
+
+  const [decisions, setDecisions] = useState({});
+  const [notes, setNotes] = useState({});
+
+  function rowId(row, index) {
+    return String(row.item_id || row.id || `row-${index + 1}`);
+  }
+
+  function setDecision(id, value) {
+    setDecisions((prev) => ({ ...prev, [id]: value }));
+  }
+
+  function setNote(id, value) {
+    setNotes((prev) => ({ ...prev, [id]: value }));
+  }
+
+  function submitRow(row, index) {
+    const id = rowId(row, index);
+    const decision = decisions[id];
+    if (!decision) return;
+
+    onCreateInteractive({
+      kind: 'interactive',
+      payload: {
+        component_id: component.id,
+        action: 'review_decision',
+        item_id: id,
+        decision,
+        notes: (notes[id] || '').trim(),
+        row,
+      },
+      target: {
+        component_id: component.id,
+        target_type: 'review_table',
+        anchor: id,
+      },
+    });
+  }
+
+  return (
+    <div style={styles.cardBody}>
+      <div style={styles.reviewTableWrap}>
+        {rows.length === 0 && <div style={styles.emptyReviewRows}>{t('noReviewItems')}</div>}
+        {rows.map((row, index) => {
+          const id = rowId(row, index);
+          const decision = decisions[id] || '';
+          const rowNote = notes[id] || '';
+
+          return (
+            <div key={`${component.id}-${id}`} style={styles.reviewRowCard}>
+              <div style={styles.reviewRowHeader}>
+                <div style={styles.reviewRowTitle}>
+                  <code style={styles.reviewItemId}>{id}</code>
+                  <span>{row.location || row.title || row.original || t('reviewItem')}</span>
+                </div>
+              </div>
+
+              <div style={styles.reviewRowBody}>
+                {row.issue && (
+                  <div style={styles.reviewField}>
+                    <span style={styles.reviewFieldLabel}>{t('issueLabel')}</span>
+                    <p style={styles.reviewFieldText}>{String(row.issue)}</p>
+                  </div>
+                )}
+                {row.suggestion && (
+                  <div style={styles.reviewField}>
+                    <span style={styles.reviewFieldLabel}>{t('suggestionLabel')}</span>
+                    <p style={styles.reviewFieldText}>{String(row.suggestion)}</p>
+                  </div>
+                )}
+              </div>
+
+              <div style={styles.reviewActions}>
+                <label style={styles.fieldGroup}>
+                  <span style={styles.fieldLabel}>{t('decisionLabel')}</span>
+                  <select
+                    value={decision}
+                    onChange={(e) => setDecision(id, e.target.value)}
+                    style={styles.select}
+                  >
+                    <option value="">{t('selectDecision')}</option>
+                    {decisionOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label style={styles.fieldGroup}>
+                  <span style={styles.fieldLabel}>{t('notesLabel')}</span>
+                  <textarea
+                    value={rowNote}
+                    onChange={(e) => setNote(id, e.target.value)}
+                    placeholder={t('notesPlaceholder')}
+                    rows={2}
+                    style={styles.textarea}
+                  />
+                </label>
+
+                <button
+                  onClick={() => submitRow(row, index)}
+                  disabled={!decision}
+                  style={{
+                    ...styles.secondaryActionBtn,
+                    ...(!decision ? styles.secondaryActionBtnDisabled : {}),
+                  }}
+                >
+                  {t('addReviewDecisionFeedback')}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function UnknownComponent({ component }) {
+  const payload = component.content || component.body || component.description || component.text;
+  return (
+    <div style={styles.cardBody}>
+      {payload ? (
+        <p style={styles.unknownText}>{String(payload)}</p>
+      ) : (
+        <pre style={styles.unknownPre}>{JSON.stringify(component, null, 2)}</pre>
+      )}
+    </div>
+  );
+}
+
 function renderComponent(component, onCreateInteractive) {
   switch (component.type) {
     case 'data_view':
+    case 'data_table':
       return <DataView component={component} onCreateInteractive={onCreateInteractive} />;
     case 'decision_form':
       return <DecisionForm component={component} onCreateInteractive={onCreateInteractive} />;
     case 'metric_grid':
       return <MetricGrid component={component} />;
+    case 'stats_row':
+    case 'stats_bar':
+      return <StatsBar component={component} />;
+    case 'review_table':
+      return <ReviewTable component={component} onCreateInteractive={onCreateInteractive} />;
+    case 'hero':
+    case 'hero_banner':
+      return <HeroBanner component={component} />;
+    case 'section_header':
+      return <SectionHeader component={component} />;
+    case 'callout_box':
+      return <CalloutBox component={component} />;
+    case 'card_grid':
+      return <CardGrid component={component} />;
+    case 'feature_block':
+      return <FeatureBlock component={component} />;
     case 'markdown':
-    default:
       return <MarkdownBlock component={component} />;
+    default:
+      return <UnknownComponent component={component} />;
   }
 }
 
 export default function RuntimeRenderer({ uiSpec, onCreateAnnotation, onCreateInteractive }) {
-  const components = normalizeArray(uiSpec?.components);
+  const components = normalizeArray(uiSpec?.components).map(withComponentProps);
 
   if (!uiSpec || components.length === 0) {
     return (
@@ -278,21 +547,24 @@ export default function RuntimeRenderer({ uiSpec, onCreateAnnotation, onCreateIn
 
   return (
     <div style={styles.layout}>
-      {components.map((component) => (
-        <SelectableSurface
-          key={component.id}
-          componentId={component.id}
-          onCreateAnnotation={onCreateAnnotation}
-        >
-          <section style={styles.card}>
-            <header style={styles.cardHeader}>
-              <h3 style={styles.cardTitle}>{component.title || component.id}</h3>
-              <span style={styles.typeTag}>{component.type}</span>
-            </header>
-            {renderComponent(component, onCreateInteractive)}
-          </section>
-        </SelectableSurface>
-      ))}
+      {components.map((component, idx) => {
+        const componentId = component.id || `component-${idx + 1}`;
+        return (
+          <SelectableSurface
+            key={componentId}
+            componentId={componentId}
+            onCreateAnnotation={onCreateAnnotation}
+          >
+            <section style={styles.card}>
+              <header style={styles.cardHeader}>
+                <h3 style={styles.cardTitle}>{component.title || componentId}</h3>
+                <span style={styles.typeTag}>{component.type}</span>
+              </header>
+              {renderComponent(component, onCreateInteractive)}
+            </section>
+          </SelectableSurface>
+        );
+      })}
     </div>
   );
 }
@@ -330,6 +602,141 @@ const styles = {
   cardBody: {
     padding: '12px',
   },
+  heroBanner: {
+    padding: '18px',
+    background: 'linear-gradient(135deg, #EEF2FF 0%, #F0F9FF 100%)',
+  },
+  heroTitle: {
+    margin: 0,
+    fontSize: '24px',
+    lineHeight: '1.3',
+    color: 'var(--vds-colors-text)',
+  },
+  heroSubtitle: {
+    margin: '10px 0 0 0',
+    fontSize: '16px',
+    color: 'var(--vds-colors-text-secondary)',
+  },
+  heroDescription: {
+    margin: '10px 0 0 0',
+    fontSize: '14px',
+    color: 'var(--vds-colors-text-secondary)',
+    lineHeight: '1.55',
+  },
+  sectionHeaderTitle: {
+    margin: 0,
+    fontSize: '18px',
+    color: 'var(--vds-colors-text)',
+  },
+  sectionHeaderSubtitle: {
+    margin: '8px 0 0 0',
+    fontSize: '14px',
+    color: 'var(--vds-colors-text-secondary)',
+  },
+  sectionDivider: {
+    marginTop: '10px',
+    height: '1px',
+    background: 'var(--vds-colors-border)',
+  },
+  calloutBox: {
+    border: '1px solid var(--vds-colors-border)',
+    background: 'var(--vds-colors-surface)',
+    borderRadius: '10px',
+    padding: '12px',
+  },
+  calloutTitle: {
+    margin: 0,
+    fontSize: '16px',
+    color: 'var(--vds-colors-text)',
+  },
+  calloutContent: {
+    margin: '8px 0 0 0',
+    fontSize: '14px',
+    color: 'var(--vds-colors-text)',
+    lineHeight: '1.55',
+  },
+  dynamicCardGrid: {
+    display: 'grid',
+    gap: '10px',
+  },
+  dynamicCard: {
+    border: '1px solid var(--vds-colors-border)',
+    borderRadius: '10px',
+    padding: '10px',
+    background: 'var(--vds-colors-surface)',
+  },
+  dynamicCardTitle: {
+    margin: 0,
+    fontSize: '15px',
+    color: 'var(--vds-colors-text)',
+  },
+  dynamicCardDesc: {
+    margin: '8px 0 0 0',
+    fontSize: '13px',
+    color: 'var(--vds-colors-text)',
+    lineHeight: '1.5',
+  },
+  dynamicCardList: {
+    margin: '8px 0 0 18px',
+    padding: 0,
+  },
+  dynamicCardListItem: {
+    marginBottom: '4px',
+    fontSize: '13px',
+    color: 'var(--vds-colors-text)',
+  },
+  featureBlock: {
+    border: '1px solid var(--vds-colors-border)',
+    borderRadius: '10px',
+    padding: '12px',
+    background: 'var(--vds-colors-surface)',
+  },
+  featureTop: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  featureNumber: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '36px',
+    height: '24px',
+    borderRadius: '999px',
+    border: '1px solid var(--vds-colors-border)',
+    background: 'white',
+    fontSize: '12px',
+    fontWeight: '700',
+    color: 'var(--vds-colors-text-secondary)',
+  },
+  featureTitle: {
+    margin: 0,
+    fontSize: '15px',
+    color: 'var(--vds-colors-text)',
+  },
+  featureDescription: {
+    margin: '10px 0 0 0',
+    fontSize: '14px',
+    color: 'var(--vds-colors-text)',
+    lineHeight: '1.55',
+  },
+  featureHighlights: {
+    marginTop: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  featureHighlightItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    border: '1px solid var(--vds-colors-border)',
+    borderRadius: '8px',
+    background: 'white',
+    padding: '8px',
+    fontSize: '13px',
+    color: 'var(--vds-colors-text)',
+  },
   metricGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
@@ -356,6 +763,27 @@ const styles = {
     fontSize: '12px',
     color: 'var(--vds-colors-text-secondary)',
     marginTop: '4px',
+  },
+  statsBarGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: '10px',
+  },
+  statsBarItem: {
+    border: '1px solid var(--vds-colors-border)',
+    borderRadius: '10px',
+    padding: '10px',
+    background: 'var(--vds-colors-surface)',
+  },
+  statsBarLabel: {
+    fontSize: '12px',
+    color: 'var(--vds-colors-text-secondary)',
+  },
+  statsBarValue: {
+    marginTop: '4px',
+    fontSize: '20px',
+    fontWeight: '700',
+    color: 'var(--vds-colors-text)',
   },
   dataControls: {
     display: 'flex',
@@ -423,6 +851,10 @@ const styles = {
     cursor: 'pointer',
     fontFamily: 'inherit',
   },
+  secondaryActionBtnDisabled: {
+    opacity: 0.55,
+    cursor: 'not-allowed',
+  },
   tableWrap: {
     overflow: 'auto',
   },
@@ -472,6 +904,92 @@ const styles = {
   fieldLabel: {
     fontSize: '13px',
     color: 'var(--vds-colors-text-secondary)',
+  },
+  reviewTableWrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  reviewRowCard: {
+    border: '1px solid var(--vds-colors-border)',
+    borderRadius: '10px',
+    background: 'var(--vds-colors-surface)',
+    padding: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  reviewRowHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reviewRowTitle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    color: 'var(--vds-colors-text)',
+    fontWeight: '600',
+  },
+  reviewItemId: {
+    fontSize: '12px',
+    border: '1px solid var(--vds-colors-border)',
+    background: 'white',
+    borderRadius: '6px',
+    padding: '2px 6px',
+    color: 'var(--vds-colors-text-secondary)',
+  },
+  reviewRowBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  reviewField: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  reviewFieldLabel: {
+    fontSize: '12px',
+    color: 'var(--vds-colors-text-secondary)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.3px',
+  },
+  reviewFieldText: {
+    margin: 0,
+    fontSize: '13px',
+    color: 'var(--vds-colors-text)',
+    lineHeight: '1.5',
+  },
+  reviewActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  emptyReviewRows: {
+    border: '1px dashed var(--vds-colors-border)',
+    borderRadius: '8px',
+    background: 'white',
+    padding: '12px',
+    fontSize: '13px',
+    color: 'var(--vds-colors-text-secondary)',
+  },
+  unknownText: {
+    margin: 0,
+    fontSize: '14px',
+    lineHeight: '1.55',
+    color: 'var(--vds-colors-text)',
+  },
+  unknownPre: {
+    margin: 0,
+    fontSize: '12px',
+    lineHeight: '1.45',
+    border: '1px solid var(--vds-colors-border)',
+    borderRadius: '8px',
+    background: 'var(--vds-colors-surface)',
+    padding: '10px',
+    overflow: 'auto',
   },
   empty: {
     border: '1px dashed var(--vds-colors-border)',

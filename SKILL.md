@@ -119,6 +119,7 @@ Pipeline (strict):
 1. Requirement Confirm: define goals, audience, key decision points.
 2. Information Architecture: define sections and evidence mapping.
 3. Interaction Strategy: include content interaction + annotation feedback + interactive feedback.
+   - For item-by-item review workflows, prefer `review_table` so users can submit `confirm/reject/change_request` per row.
 4. UI Spec Generation: output `ui_spec v2`.
 5. Validation & Publish: ensure schema validity and feedback path completeness.
 

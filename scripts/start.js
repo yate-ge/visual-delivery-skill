@@ -91,6 +91,7 @@ async function main() {
   const port = parseInt(args['port']) || PORT;
   const dataDir = path.resolve(args['data-dir'] || path.join(process.cwd(), '.visual-delivery'));
   const initLang = normalizeLang(args['lang']) || detectEnvLang();
+  const shouldSyncTemplates = args['sync-templates'] !== 'false';
 
   // Check Node.js version
   const nodeVersion = parseInt(process.versions.node.split('.')[0]);
@@ -132,6 +133,7 @@ async function main() {
   const firstRun = !fs.existsSync(path.join(dataDir, 'server'));
 
   // Initialize work directory (first run)
+  let templatesSynced = false;
   if (firstRun) {
     log('Initializing work directory...');
 
@@ -162,6 +164,19 @@ async function main() {
     // Ensure data dirs exist on subsequent runs
     fs.mkdirSync(path.join(dataDir, 'data', 'deliveries'), { recursive: true });
     fs.mkdirSync(path.join(dataDir, 'logs'), { recursive: true });
+
+    if (shouldSyncTemplates) {
+      log('Syncing runtime templates...');
+      fs.cpSync(path.join(SKILL_DIR, 'templates', 'server'), path.join(dataDir, 'server'), {
+        recursive: true,
+        force: true,
+      });
+      fs.cpSync(path.join(SKILL_DIR, 'templates', 'ui'), path.join(dataDir, 'ui'), {
+        recursive: true,
+        force: true,
+      });
+      templatesSynced = true;
+    }
   }
 
   // Initialize settings.json if missing.
@@ -216,7 +231,7 @@ async function main() {
 
   // Build frontend (if dist/ missing)
   const distDir = path.join(uiDir, 'dist');
-  if (!fs.existsSync(distDir)) {
+  if (!fs.existsSync(distDir) || templatesSynced) {
     log('Building frontend...');
     try {
       execSync('npm run build', { cwd: uiDir, stdio: 'pipe' });
@@ -319,6 +334,7 @@ async function main() {
     remote_url: remoteUrl,
     pid: child.pid,
     first_run: firstRun,
+    templates_synced: templatesSynced,
     language: initLang,
     design_spec_path: firstRun ? designSpecPath : undefined
   });

@@ -61,6 +61,23 @@ export async function resolveFeedback(deliveryId, feedbackIds, handledBy = 'agen
   return res.json();
 }
 
+export async function fetchExecutionEvents(deliveryId) {
+  const res = await fetch(`${BASE}/api/deliveries/${deliveryId}/execution-events`);
+  await ensureOk(res, 'Failed to fetch execution events');
+  return res.json();
+}
+
+export async function appendExecutionEvents(deliveryId, events) {
+  const payload = Array.isArray(events) ? { events } : { event: events };
+  const res = await fetch(`${BASE}/api/deliveries/${deliveryId}/execution-events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  await ensureOk(res, 'Failed to append execution events');
+  return res.json();
+}
+
 export async function addAnnotation(deliveryId, annotation) {
   const res = await fetch(`${BASE}/api/deliveries/${deliveryId}/annotate`, {
     method: 'POST',

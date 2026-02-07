@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const { nowLocalISO } = require('./time');
 
 let wss = null;
 
@@ -9,7 +10,7 @@ function setupWebSocket(server) {
     ws.send(
       JSON.stringify({
         event: 'connected',
-        data: { ts: new Date().toISOString() },
+        data: { ts: nowLocalISO() },
       })
     );
   });

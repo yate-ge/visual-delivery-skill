@@ -105,14 +105,56 @@ Response:
 
 ### `GET /api/deliveries/:id`
 
-Returns delivery with `feedback`, `drafts`, and `pending_feedback_count`.
+Returns delivery with `feedback`, `drafts`, `execution_events`, and `pending_feedback_count`.
 
 Response fields:
 
 - delivery core (`id`, `mode`, `status`, `title`, `content`, `metadata`)
 - `feedback[]`
 - `drafts[]`
+- `execution_events[]`
 - `pending_feedback_count`
+
+### `GET /api/deliveries/:id/execution-events`
+
+Get execution timeline events for this delivery.
+
+Response:
+
+```json
+{
+  "delivery_id": "d_...",
+  "events": [
+    {
+      "id": "e_...",
+      "feedback_id": "f_...",
+      "stage": "queued|in_progress|completed|failed|info",
+      "message": "string",
+      "actor": "user|agent|system",
+      "meta": {},
+      "created_at": "ISO datetime"
+    }
+  ]
+}
+```
+
+### `POST /api/deliveries/:id/execution-events`
+
+Append execution timeline event(s).
+
+```json
+{
+  "events": [
+    {
+      "feedback_id": "f_...",
+      "stage": "in_progress",
+      "message": "Applying requested changes to content.md",
+      "actor": "agent",
+      "meta": {}
+    }
+  ]
+}
+```
 
 ## Feedback APIs
 

@@ -108,6 +108,16 @@ Typical payloads:
 
 ```json
 {
+  "component_id": "critical-review",
+  "action": "review_decision",
+  "item_id": "A1",
+  "decision": "confirm",
+  "notes": "术语修正同意"
+}
+```
+
+```json
+{
   "component_id": "file-table",
   "action": "data_view_state",
   "view_mode": "table",
@@ -124,7 +134,7 @@ Optional location pointer:
 ```json
 {
   "component_id": "component-1",
-  "target_type": "selected_text|data_view|decision_form",
+  "target_type": "selected_text|data_view|decision_form|review_table",
   "anchor": "selected text or semantic key"
 }
 ```
