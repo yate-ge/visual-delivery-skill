@@ -37,12 +37,13 @@ Every generated page must be a full HTML document:
 
 ## Core Philosophy
 
-1. **Interactive first**: even for informational content, build functional widgets — sortable tables, expandable sections, interactive charts. Never produce a static wall of text.
+1. **Interactive first**: even for informational content, build functional widgets — sortable tables, interactive charts, filter bars. Never produce a static wall of text.
 2. **Visual richness**: use color, layout, cards, gradients, icons, and subtle animations. The page should feel like a crafted product, not a document.
 3. **No placeholders**: every element must be functional with real data. Remove any element that cannot be fully realized.
 4. **Self-contained**: one HTML string with inline `<style>` and `<script>`. No external files except CDN libraries.
 5. **Responsive**: must look good on both desktop (1200px+) and narrow viewports (400px).
-6. **Mandatory feedback UI**: every delivery page MUST include at least one interactive feedback element (`data-vd-feedback-*`). A page without feedback components is incomplete. See [Feedback requirements](#feedback-requirements) below.
+6. **Mandatory feedback UI**: every delivery page MUST include at least one interactive feedback element (`data-vd-feedback-*`). A page without feedback components is incomplete. Do NOT generate global/overall feedback forms — the platform sidebar already provides that. Only generate per-item feedback buttons. See [Feedback requirements](#feedback-requirements) below.
+7. **No hidden content**: all content and feedback buttons must be fully visible by default. NEVER use `<details>`/`<summary>`, accordions, collapsible panels, or any pattern that hides content behind a click. Users must see all information and feedback controls without extra interaction steps.
 
 ## Design Tokens
 
@@ -89,32 +90,52 @@ The platform injects a Bridge Script that automatically captures user interactio
 ### Anti-patterns (DO NOT do this)
 
 ```html
-<!-- WRONG: feedback attribute on an expandable content element -->
-<details data-vd-feedback-action="review_item">
+<!-- WRONG: collapsible content hides details and feedback behind a click -->
+<details>
   <summary>Issue #1: Missing null check</summary>
   <p>Details here...</p>
+  <button data-vd-feedback-action="approve_fix">Approve</button>
 </details>
 
-<!-- WRONG: feedback attribute on a card that also has click-to-expand -->
+<!-- WRONG: accordion that hides content -->
+<div class="card" onclick="toggleExpand(this)">
+  <h3>Issue #1</h3>
+  <div class="hidden-content">...</div>
+</div>
+
+<!-- WRONG: feedback attribute on a content interaction element -->
 <div class="card" onclick="toggleExpand(this)"
      data-vd-feedback-action="select_item">
   ...
 </div>
+
+<!-- WRONG: global overall feedback form (platform sidebar handles this) -->
+<form data-vd-feedback-action="overall_decision">
+  <select name="decision">...</select>
+  <button type="submit">Submit Overall Decision</button>
+</form>
 ```
 
-Instead, separate content interaction from feedback:
+Correct pattern — content fully visible, per-item feedback buttons:
 
 ```html
-<!-- CORRECT: content element is independent, feedback button is separate -->
-<details>
-  <summary>Issue #1: Missing null check</summary>
-  <p>Details here...</p>
-  <button data-vd-feedback-action="approve_fix"
-          data-vd-feedback-label="Approve fix for Issue #1"
-          data-vd-feedback-item-id="issue-1">
-    Approve Fix
-  </button>
-</details>
+<!-- CORRECT: all content visible, feedback button clearly separated -->
+<div class="card">
+  <h3>Issue #1: Missing null check</h3>
+  <p>File: auth.js:42 — Details fully visible here...</p>
+  <div style="display:flex; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0">
+    <button data-vd-feedback-action="accept_fix"
+            data-vd-feedback-label="Accept fix for Issue #1"
+            data-vd-feedback-item-id="issue-1">
+      Accept Fix
+    </button>
+    <button data-vd-feedback-action="skip"
+            data-vd-feedback-label="Skip Issue #1"
+            data-vd-feedback-item-id="issue-1">
+      Skip
+    </button>
+  </div>
+</div>
 ```
 
 ### Button feedback
@@ -193,12 +214,14 @@ Every delivery page **MUST** include interactive feedback elements. A page witho
 
 ### Choosing the right feedback pattern
 
+Only generate **per-item** feedback buttons. Do NOT generate global/overall feedback forms — the platform's FeedbackSidebar already provides free-text and overall feedback functionality.
+
 | Content type | Recommended feedback pattern |
 |---|---|
-| Review with multiple items (code review, document issues, audit) | Per-item approve/reject buttons + optional batch action at bottom |
-| Proposal or plan | Global approve / request changes / reject buttons |
-| Data report or dashboard | Rating or satisfaction form at bottom |
-| Comparison or options | Selection buttons per option |
+| Review with multiple items (code review, document issues, audit) | Per-item approve/reject/skip buttons |
+| Proposal or plan | Per-section approve/request-changes buttons |
+| Data report or dashboard | Per-metric or per-insight flag/acknowledge buttons |
+| Comparison or options | Per-option select/prefer buttons |
 
 ### Per-item feedback (most common)
 
@@ -224,31 +247,6 @@ When the page presents a list of items that each need a decision, add a dedicate
       Skip
     </button>
   </div>
-</div>
-```
-
-### Global feedback (bottom of page)
-
-For overall approval or rating, place a prominent feedback form at the bottom of the page:
-
-```html
-<div style="margin-top:32px; padding:24px; background:var(--vds-colors-surface,#f8fafc); border:1px solid var(--vds-colors-border,#e2e8f0); border-radius:12px">
-  <h3 style="margin:0 0 16px">Overall Decision</h3>
-  <form data-vd-feedback-action="overall_decision"
-        data-vd-feedback-label="Overall review decision"
-        style="display:flex; flex-direction:column; gap:12px">
-    <select name="decision" style="padding:8px; border-radius:8px; border:1px solid var(--vds-colors-border,#e2e8f0)">
-      <option value="approve">Approve all</option>
-      <option value="partial">Apply selected fixes</option>
-      <option value="reject">Reject all</option>
-    </select>
-    <textarea name="notes" placeholder="Additional notes..." rows="3"
-              style="padding:8px; border-radius:8px; border:1px solid var(--vds-colors-border,#e2e8f0)"></textarea>
-    <button type="submit"
-            style="padding:10px; background:var(--vds-colors-primary,#3b82f6); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600">
-      Submit Decision
-    </button>
-  </form>
 </div>
 ```
 
@@ -314,3 +312,5 @@ document.addEventListener('DOMContentLoaded', function() {
 5. **External file references** — all CSS/JS must be inline or from CDN.
 6. **Not escaping HTML in data** — use `textContent` instead of `innerHTML` for user data.
 7. **Using `localStorage`** — not available in sandboxed context.
+8. **Collapsible/expandable content** — never use `<details>`, accordions, or toggle-to-show patterns. All content must be visible by default.
+9. **Global feedback forms** — do not generate "overall decision" or "overall review" forms. The platform sidebar handles global feedback.

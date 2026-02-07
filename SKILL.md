@@ -124,8 +124,9 @@ Core principles:
 - **Allowed CDNs**: Tailwind CSS (`https://cdn.tailwindcss.com`), Chart.js, Mermaid, D3.js, Highlight.js, and similar visualization/utility libraries.
 - **Responsive**: support desktop and mobile viewports.
 - **No placeholders**: every element must be functional with real data.
-- **Mandatory feedback UI**: every page MUST contain `data-vd-feedback-*` buttons or forms. A page without them is incomplete. Use per-item buttons for review lists, global forms for overall decisions.
-- **Feedback UI separation**: `data-vd-feedback-*` attributes must ONLY be on dedicated feedback buttons/forms, never on content interaction elements (expandable sections, cards, tabs). See [references/generative-ui-guide.md](references/generative-ui-guide.md) for patterns and anti-patterns.
+- **No hidden content**: all content and feedback buttons must be fully visible by default. NEVER use `<details>`/`<summary>`, accordions, collapsible panels, or click-to-expand patterns.
+- **Mandatory per-item feedback**: every page MUST contain `data-vd-feedback-*` buttons for each actionable item. Do NOT generate global/overall feedback forms — the platform sidebar handles that.
+- **Feedback UI separation**: `data-vd-feedback-*` attributes must ONLY be on dedicated feedback buttons/forms, never on content interaction elements. See [references/generative-ui-guide.md](references/generative-ui-guide.md) for patterns and anti-patterns.
 
 Interactive feedback elements (agent embeds in HTML):
 
