@@ -1,20 +1,17 @@
 const WebSocket = require('ws');
-const { readJSONArray } = require('./store');
 
 let wss = null;
 
-function setupWebSocket(server, indexPath) {
+function setupWebSocket(server) {
   wss = new WebSocket.Server({ server });
 
   wss.on('connection', (ws) => {
-    // On new connection, send pending blocking deliveries
-    const index = readJSONArray(indexPath);
-    const blocking = index.filter(d =>
-      d.mode === 'blocking' && d.status === 'awaiting_feedback'
+    ws.send(
+      JSON.stringify({
+        event: 'connected',
+        data: { ts: new Date().toISOString() },
+      })
     );
-    blocking.forEach(d => {
-      ws.send(JSON.stringify({ event: 'new_delivery', data: d }));
-    });
   });
 
   return wss;
@@ -23,7 +20,8 @@ function setupWebSocket(server, indexPath) {
 function broadcast(event, data) {
   if (!wss) return;
   const message = JSON.stringify({ event, data });
-  wss.clients.forEach(client => {
+
+  wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(message);
     }
@@ -31,7 +29,10 @@ function broadcast(event, data) {
 }
 
 function closeWebSocket() {
-  if (wss) wss.close();
+  if (wss) {
+    wss.close();
+    wss = null;
+  }
 }
 
 module.exports = { setupWebSocket, broadcast, closeWebSocket };

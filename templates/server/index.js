@@ -5,17 +5,15 @@ const express = require('express');
 const { setupWebSocket, broadcast, closeWebSocket } = require('./lib/ws');
 const { setupRoutes } = require('./routes/api');
 
-// Parse CLI arguments
 function parseArgs(argv) {
   const args = {};
   for (let i = 2; i < argv.length; i++) {
-    if (argv[i].startsWith('--')) {
-      const key = argv[i].slice(2);
-      if (argv[i + 1] && !argv[i + 1].startsWith('--')) {
-        args[key] = argv[++i];
-      } else {
-        args[key] = true;
-      }
+    if (!argv[i].startsWith('--')) continue;
+    const key = argv[i].slice(2);
+    if (argv[i + 1] && !argv[i + 1].startsWith('--')) {
+      args[key] = argv[++i];
+    } else {
+      args[key] = true;
     }
   }
   return args;
@@ -23,38 +21,27 @@ function parseArgs(argv) {
 
 const args = parseArgs(process.argv);
 const dataDir = args['data-dir'] || path.join(process.cwd(), '.visual-delivery');
-const port = parseInt(args['port']) || 3847;
-const host = args['host'] || '127.0.0.1';
-const lang = args['lang'] || 'en';
+const port = parseInt(args.port, 10) || 3847;
+const host = args.host || '127.0.0.1';
 const uiDir = args['ui-dir'] || path.join(dataDir, 'ui', 'dist');
 
-// Ensure data directories exist
 fs.mkdirSync(path.join(dataDir, 'data', 'deliveries'), { recursive: true });
+fs.mkdirSync(path.join(dataDir, 'data', 'sessions'), { recursive: true });
 fs.mkdirSync(path.join(dataDir, 'logs'), { recursive: true });
 
-// Initialize index.json if not exists
 const indexPath = path.join(dataDir, 'data', 'index.json');
 if (!fs.existsSync(indexPath)) {
   fs.writeFileSync(indexPath, '[]', 'utf8');
 }
 
-// Express setup
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.set('port', port);
 
-// API routes
 setupRoutes(app, dataDir);
 
-// Language config endpoint
-app.get('/api/config', (req, res) => {
-  res.json({ lang });
-});
-
-// Static files (runtime-built frontend)
 if (fs.existsSync(uiDir)) {
   app.use(express.static(uiDir));
-  // SPA fallback: serve index.html for all non-API, non-static routes
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api/') && !req.path.startsWith('/health')) {
       res.sendFile(path.join(uiDir, 'index.html'));
@@ -62,13 +49,9 @@ if (fs.existsSync(uiDir)) {
   });
 }
 
-// Create HTTP server
 const server = http.createServer(app);
+setupWebSocket(server);
 
-// WebSocket setup
-setupWebSocket(server, indexPath);
-
-// Design token file watcher
 function watchDesignTokens() {
   const tokensPath = path.join(dataDir, 'design', 'tokens.json');
   if (!fs.existsSync(tokensPath)) return;
@@ -81,28 +64,22 @@ function watchDesignTokens() {
         const tokens = JSON.parse(fs.readFileSync(tokensPath, 'utf8'));
         if (tokens.colors && tokens.typography && tokens.spacing) {
           broadcast('design_updated', tokens);
-          console.log('Design tokens updated, broadcast to clients');
-        } else {
-          console.error('Invalid tokens.json: missing required sections');
         }
       } catch (err) {
         console.error('Invalid tokens.json:', err.message);
       }
-    }, 200);  // 200ms debounce
+    }, 200);
   });
 }
 
-// Write PID file
 const pidPath = path.join(dataDir, 'server.pid');
 fs.writeFileSync(pidPath, String(process.pid));
 
-// Start server
 server.listen(port, host, () => {
   console.log(`Server running at http://${host}:${port}`);
   watchDesignTokens();
 });
 
-// Graceful shutdown
 function shutdown(signal) {
   console.log(`Received ${signal}, shutting down...`);
   closeWebSocket();
@@ -110,11 +87,13 @@ function shutdown(signal) {
     try {
       fs.unlinkSync(pidPath);
     } catch (err) {
-      if (err.code !== 'ENOENT') console.error('PID cleanup error:', err.message);
+      if (err.code !== 'ENOENT') {
+        console.error('PID cleanup error:', err.message);
+      }
     }
     process.exit(0);
   });
-  // Force exit if graceful shutdown takes too long
+
   setTimeout(() => {
     console.error('Graceful shutdown timed out, forcing exit');
     process.exit(1);

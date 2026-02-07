@@ -1,97 +1,169 @@
-# Feedback Schema Reference
+# Feedback Payload Schema (v2)
 
 ## Table of Contents
 
-- [confirm](#confirm)
-- [select](#select)
-- [form](#form)
-- [rating](#rating)
+- [Overview](#overview)
+- [Draft Feedback Item](#draft-feedback-item)
+- [Committed Feedback Item](#committed-feedback-item)
+- [Kinds](#kinds)
+- [Target Object](#target-object)
+- [Lifecycle Rules](#lifecycle-rules)
+- [Examples](#examples)
 
----
+## Overview
 
-## confirm
+In v2, all feedback is unified into a single item model. There are two stages:
 
-Binary yes/no decision.
+1. Draft (`feedback/draft`): staged in sidebar.
+2. Committed (`feedback/commit`): becomes actionable feedback for agent.
+
+All committed feedback entries are item-level resolvable via `feedback/resolve`.
+
+## Draft Feedback Item
+
+Used by `POST /api/deliveries/:id/feedback/draft`.
 
 ```json
 {
-  "type": "confirm",
-  "prompt": "Deploy to production?",
-  "confirm_label": "Yes, deploy",
-  "cancel_label": "Cancel"
+  "id": "optional",
+  "kind": "annotation|interactive",
+  "payload": {},
+  "target": null,
+  "created_at": "optional ISO datetime"
 }
 ```
 
-Response: `{ "value": true }` or `{ "value": false }`
+Fields:
 
-Optional fields: `confirm_label` (default: "Confirm"), `cancel_label` (default: "Cancel")
+- `id`: optional client-generated id (server generates if absent)
+- `kind`: `annotation` or `interactive`
+- `payload`: free-form object
+- `target`: nullable target pointer
+- `created_at`: optional timestamp
 
----
+## Committed Feedback Item
 
-## select
-
-Choose from options.
+Persisted in `feedback.json`.
 
 ```json
 {
-  "type": "select",
-  "prompt": "Choose deployment environment",
-  "options": ["staging", "production", "dev"],
-  "multiple": false
+  "id": "f_1771000000_001",
+  "kind": "annotation",
+  "payload": {
+    "text": "请把该段结论拆成两条"
+  },
+  "target": {
+    "component_id": "summary-block",
+    "target_type": "selected_text",
+    "anchor": "current sentence"
+  },
+  "handled": false,
+  "handled_at": null,
+  "handled_by": null,
+  "created_at": "2026-02-07T08:00:00.000Z"
 }
 ```
 
-Single response: `{ "value": "staging" }`
-Multiple response: `{ "value": ["staging", "dev"] }`
+Resolution updates:
 
-Optional fields: `multiple` (default: false)
+- `handled = true`
+- `handled_at = ISO datetime`
+- `handled_by = "agent" | custom string`
 
----
+## Kinds
 
-## form
+### `annotation`
 
-Structured form with multiple fields.
+Feedback from selection toolbar on UI components.
+
+Typical payload:
 
 ```json
 {
-  "type": "form",
-  "fields": [
+  "text": "这个数据口径需要统一",
+  "selected_text": "..."
+}
+```
+
+### `interactive`
+
+Feedback from interactive widgets or direct sidebar input.
+
+Typical payloads:
+
+```json
+{ "text": "建议保留方案B" }
+```
+
+```json
+{
+  "component_id": "decision-form",
+  "action": "decision_form_submission",
+  "values": {
+    "decision": "Approve",
+    "notes": "looks good"
+  }
+}
+```
+
+```json
+{
+  "component_id": "file-table",
+  "action": "data_view_state",
+  "view_mode": "table",
+  "query": "api",
+  "order_key": "size",
+  "order_dir": "desc"
+}
+```
+
+## Target Object
+
+Optional location pointer:
+
+```json
+{
+  "component_id": "component-1",
+  "target_type": "selected_text|data_view|decision_form",
+  "anchor": "selected text or semantic key"
+}
+```
+
+## Lifecycle Rules
+
+1. Draft items do not affect delivery status.
+2. Commit creates committed feedback items with `handled=false`.
+3. Delivery status rule:
+   - Any `handled=false` => `pending_feedback`
+   - All `handled=true` => `normal`
+4. Resolve is item-level, not page-level.
+
+## Examples
+
+### Commit mixed items
+
+```json
+{
+  "items": [
     {
-      "name": "priority",
-      "type": "select",
-      "label": "Priority",
-      "options": ["P0", "P1", "P2"],
-      "required": true
+      "kind": "annotation",
+      "payload": {"text": "标题更聚焦"},
+      "target": {"component_id": "title", "target_type": "selected_text", "anchor": "..."}
     },
     {
-      "name": "description",
-      "type": "textarea",
-      "label": "Description",
-      "placeholder": "Describe the issue...",
-      "required": false
+      "kind": "interactive",
+      "payload": {"text": "建议默认选项改为第二个"},
+      "target": null
     }
   ]
 }
 ```
 
-Response: `{ "values": { "priority": "P1", "description": "..." } }`
-
-Field types: `text`, `number`, `textarea`, `select`, `checkbox`
-
----
-
-## rating
-
-Star rating.
+### Resolve subset
 
 ```json
 {
-  "type": "rating",
-  "prompt": "How satisfied are you with this result?",
-  "max": 5
+  "feedback_ids": ["f_1771000000_001", "f_1771000000_003"],
+  "handled_by": "agent"
 }
 ```
-
-Response: `{ "value": 4 }`
-
-Optional fields: `max` (default: 5)

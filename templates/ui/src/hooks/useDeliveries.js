@@ -23,25 +23,27 @@ export function useDeliveries() {
     load();
   }, [load]);
 
-  // Listen for real-time updates
   useEffect(() => {
     const onNewDelivery = (data) => {
-      setDeliveries(prev => {
-        // Avoid duplicates
-        if (prev.find(d => d.id === data.id)) return prev;
-        return [...prev, data];
+      setDeliveries((prev) => {
+        if (prev.some((item) => item.id === data.id)) return prev;
+        return [data, ...prev];
       });
     };
 
     const onUpdateDelivery = (data) => {
-      setDeliveries(prev =>
-        prev.map(d => d.id === data.id ? { ...d, ...data } : d)
+      setDeliveries((prev) =>
+        prev.map((item) => (item.id === data.id ? { ...item, ...data } : item))
       );
     };
 
     const onFeedbackReceived = (data) => {
-      setDeliveries(prev =>
-        prev.map(d => d.id === data.delivery_id ? { ...d, status: 'completed' } : d)
+      setDeliveries((prev) =>
+        prev.map((item) =>
+          item.id === data.delivery_id
+            ? { ...item, status: 'pending_feedback' }
+            : item
+        )
       );
     };
 

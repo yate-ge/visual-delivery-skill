@@ -1,40 +1,42 @@
 const fs = require('fs');
 const path = require('path');
 
-const LOCK_TIMEOUT = 5000;  // 5s — max time to wait for lock
-const LOCK_RETRY = 50;      // 50ms — retry interval
+const LOCK_TIMEOUT = 5000;
+const LOCK_RETRY = 50;
+
+function ensureParentDir(filePath) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+}
 
 async function acquireLock(filePath) {
   const lockPath = `${filePath}.lock`;
   const start = Date.now();
 
+  ensureParentDir(filePath);
+
   while (true) {
     try {
-      // O_EXCL: fail if file exists (atomic check-and-create)
       fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
       return lockPath;
     } catch (err) {
       if (err.code !== 'EEXIST') throw err;
 
-      // Check for stale lock (process died)
       try {
         const lockPid = parseInt(fs.readFileSync(lockPath, 'utf8'));
         try {
-          process.kill(lockPid, 0);  // Check if process exists
+          process.kill(lockPid, 0);
         } catch {
-          // Process is dead — remove stale lock
           fs.unlinkSync(lockPath);
           continue;
         }
       } catch {
-        // Lock file disappeared — retry
         continue;
       }
 
       if (Date.now() - start > LOCK_TIMEOUT) {
         throw new Error(`Lock timeout on ${filePath}`);
       }
-      await new Promise(r => setTimeout(r, LOCK_RETRY));
+      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY));
     }
   }
 }
@@ -43,56 +45,65 @@ function releaseLock(lockPath) {
   try {
     fs.unlinkSync(lockPath);
   } catch (err) {
-    if (err.code !== 'ENOENT') console.error('Lock release error:', err.message);
+    if (err.code !== 'ENOENT') {
+      console.error('Lock release error:', err.message);
+    }
   }
+}
+
+function writeFileAtomically(filePath, content) {
+  ensureParentDir(filePath);
+  const tmpFile = path.join(
+    path.dirname(filePath),
+    `.tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  );
+  fs.writeFileSync(tmpFile, content, 'utf8');
+  fs.renameSync(tmpFile, filePath);
 }
 
 async function writeJSON(filePath, data) {
   const lockPath = await acquireLock(filePath);
   try {
-    const content = JSON.stringify(data, null, 2);
-    const tmpFile = path.join(
-      path.dirname(filePath),
-      `.tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`
-    );
-    fs.writeFileSync(tmpFile, content, 'utf8');
-    fs.renameSync(tmpFile, filePath);
+    writeFileAtomically(filePath, JSON.stringify(data, null, 2));
   } finally {
     releaseLock(lockPath);
   }
 }
 
-// Read array JSON (index.json, annotations.json, feedback.json)
 function readJSONArray(filePath) {
   try {
     const raw = fs.readFileSync(filePath, 'utf8');
-    const data = JSON.parse(raw);
-    if (!Array.isArray(data)) {
-      console.error(`Warning: ${filePath} is not an array, resetting`);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      console.error(`Warning: ${filePath} is not an array. Resetting to [].`);
+      writeFileAtomically(filePath, '[]');
       return [];
     }
-    return data;
+    return parsed;
   } catch (err) {
     if (err.code === 'ENOENT') {
-      fs.writeFileSync(filePath, '[]', 'utf8');
+      writeFileAtomically(filePath, '[]');
       return [];
     }
     if (err instanceof SyntaxError) {
       const backupPath = `${filePath}.corrupted.${Date.now()}`;
       fs.copyFileSync(filePath, backupPath);
       console.error(`Corrupted JSON at ${filePath}, backed up to ${backupPath}`);
-      fs.writeFileSync(filePath, '[]', 'utf8');
+      writeFileAtomically(filePath, '[]');
       return [];
     }
     throw err;
   }
 }
 
-// Read object JSON (delivery.json, session.json)
 function readJSONObject(filePath) {
   try {
     const raw = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (parsed === null || Array.isArray(parsed) || typeof parsed !== 'object') {
+      return null;
+    }
+    return parsed;
   } catch (err) {
     if (err.code === 'ENOENT') return null;
     if (err instanceof SyntaxError) {
@@ -105,29 +116,28 @@ function readJSONObject(filePath) {
   }
 }
 
-// Read-modify-write with locking
-async function updateJSON(filePath, updater) {
+async function updateJSON(filePath, updater, defaultValue = []) {
   const lockPath = await acquireLock(filePath);
   try {
-    let data;
+    let data = defaultValue;
     try {
       const raw = fs.readFileSync(filePath, 'utf8');
       data = JSON.parse(raw);
     } catch {
-      data = [];
+      data = defaultValue;
     }
-    const updated = updater(data);
-    const content = JSON.stringify(updated, null, 2);
-    const tmpFile = path.join(
-      path.dirname(filePath),
-      `.tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`
-    );
-    fs.writeFileSync(tmpFile, content, 'utf8');
-    fs.renameSync(tmpFile, filePath);
-    return updated;
+
+    const next = updater(data);
+    writeFileAtomically(filePath, JSON.stringify(next, null, 2));
+    return next;
   } finally {
     releaseLock(lockPath);
   }
 }
 
-module.exports = { writeJSON, readJSONArray, readJSONObject, updateJSON };
+module.exports = {
+  writeJSON,
+  readJSONArray,
+  readJSONObject,
+  updateJSON,
+};

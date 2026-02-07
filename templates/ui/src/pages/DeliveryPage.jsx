@@ -1,38 +1,48 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { fetchDelivery, submitFeedback, addAnnotation } from '../lib/api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import {
+  fetchDelivery,
+  saveFeedbackDraft,
+  commitFeedback,
+} from '../lib/api';
 import { eventBus } from '../lib/eventBus';
 import ContentRenderer from '../components/ContentRenderer';
-import FeedbackRenderer from '../components/feedback/FeedbackRenderer';
-import AnnotationSidebar from '../components/AnnotationSidebar';
-import { t } from '../lib/i18n';
+import FeedbackSidebar from '../components/feedback/FeedbackSidebar';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return t('justNow');
-  if (minutes < 60) return t('minAgo', { n: minutes });
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t('hoursAgo', { n: hours });
-  const days = Math.floor(hours / 24);
-  return t('daysAgo', { n: days });
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour}h ago`;
+  const day = Math.floor(hour / 24);
+  return `${day}d ago`;
+}
+
+function createDraftItem(item) {
+  return {
+    ...item,
+    id: item.id || `fd_local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    created_at: item.created_at || new Date().toISOString(),
+  };
 }
 
 export default function DeliveryPage() {
   const { id } = useParams();
+
   const [delivery, setDelivery] = useState(null);
+  const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
-  const [annotationText, setAnnotationText] = useState('');
-  const [showAnnotationInput, setShowAnnotationInput] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const data = await fetchDelivery(id);
       setDelivery(data);
-      setFeedbackSubmitted(data.feedback && data.feedback.length > 0);
+      setDrafts(data.drafts || []);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -45,141 +55,128 @@ export default function DeliveryPage() {
     load();
   }, [load]);
 
-  // Listen for real-time feedback updates
   useEffect(() => {
-    const onFeedback = (data) => {
-      if (data.delivery_id === id) {
+    function onDeliveryUpdate(payload) {
+      if (payload.id === id || payload.delivery_id === id) {
         load();
       }
+    }
+
+    eventBus.on('feedback_received', onDeliveryUpdate);
+    eventBus.on('update_delivery', onDeliveryUpdate);
+
+    return () => {
+      eventBus.off('feedback_received', onDeliveryUpdate);
+      eventBus.off('update_delivery', onDeliveryUpdate);
     };
-    eventBus.on('feedback_received', onFeedback);
-    return () => eventBus.off('feedback_received', onFeedback);
   }, [id, load]);
 
-  const handleFeedbackSubmit = async (values) => {
+  async function persistDrafts(nextDrafts) {
+    setDrafts(nextDrafts);
     try {
-      await submitFeedback(id, values);
-      setFeedbackSubmitted(true);
-      load();
+      await saveFeedbackDraft(id, nextDrafts);
     } catch (err) {
       setError(err.message);
     }
-  };
+  }
 
-  const handleAddAnnotation = async () => {
-    if (!annotationText.trim()) return;
+  function addDraftItem(item) {
+    const next = [...drafts, createDraftItem(item)];
+    persistDrafts(next);
+  }
+
+  function removeDraftItem(draftId) {
+    const next = drafts.filter((item) => item.id !== draftId);
+    persistDrafts(next);
+  }
+
+  async function handleCommit() {
+    if (drafts.length === 0) return;
+
+    setSubmitting(true);
     try {
-      await addAnnotation(id, {
-        type: 'comment',
-        content: annotationText.trim(),
-        target: null
-      });
-      setAnnotationText('');
-      setShowAnnotationInput(false);
-      load();
+      await commitFeedback(id, drafts);
+      await persistDrafts([]);
+      await load();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSubmitting(false);
     }
-  };
+  }
+
+  const modeBadgeStyle = useMemo(() => {
+    if (!delivery) return styles.modeTask;
+    return delivery.mode === 'alignment' ? styles.modeAlign : styles.modeTask;
+  }, [delivery]);
 
   if (loading) return <div style={styles.loading}>Loading...</div>;
   if (error) return <div style={styles.error}>Error: {error}</div>;
-  if (!delivery) return <div style={styles.error}>{t('deliveryNotFound')}</div>;
+  if (!delivery) return <div style={styles.error}>Delivery not found</div>;
 
-  const isBlocking = delivery.mode === 'blocking' && delivery.status === 'awaiting_feedback';
-  const hasFeedbackSchema = delivery.feedback_schema && !feedbackSubmitted;
+  const metadata = delivery.metadata || {};
+  const pendingCount = (delivery.feedback || []).filter((item) => item.handled === false).length;
 
   return (
-    <div style={styles.container}>
+    <div style={styles.page}>
       <header style={styles.header}>
-        <Link to="/" style={styles.backLink}>{t('backToList')}</Link>
-        <div style={styles.headerRight}>
+        <Link to="/" style={styles.backLink}>&larr; Back</Link>
+        <div style={styles.titleRow}>
           <h1 style={styles.title}>{delivery.title}</h1>
-          <div style={styles.meta}>
-            <span style={{
-              ...styles.badge,
-              ...(delivery.mode === 'blocking' ? styles.badgeBlocking :
-                  delivery.mode === 'interactive' ? styles.badgeInteractive :
-                  styles.badgePassive)
-            }}>
-              {delivery.mode}
-            </span>
-            <span>{delivery.status.replace('_', ' ')}</span>
-            <span>{timeAgo(delivery.created_at)}</span>
-          </div>
+          <span style={{ ...styles.modeBadge, ...modeBadgeStyle }}>{delivery.mode}</span>
+        </div>
+        <div style={styles.metaRow}>
+          <span>Status: {delivery.status}</span>
+          <span>Created {timeAgo(delivery.created_at)}</span>
+          {delivery.mode === 'alignment' && <span>Alignment: {delivery.alignment_state || 'n/a'}</span>}
         </div>
       </header>
 
-      {isBlocking && (
-        <div style={styles.waitingBanner}>
-          {t('agentWaiting')}
+      <section style={styles.sourceInfo}>
+        <div><strong>Project:</strong> {metadata.project_name || 'Untitled Project'}</div>
+        <div><strong>Task:</strong> {metadata.task_name || 'Untitled Task'}</div>
+        <div><strong>Generated:</strong> {metadata.generated_at || delivery.created_at}</div>
+      </section>
+
+      {delivery.mode === 'alignment' && (
+        <div style={styles.alignmentNotice}>
+          This alignment page is decision-focused and can replace previous active alignment in the same session.
         </div>
       )}
 
-      <div style={styles.body}>
-        <div style={styles.contentArea}>
-          <ContentRenderer content={delivery.content} />
+      <div style={styles.layout}>
+        <main style={styles.main}>
+          <ContentRenderer
+            content={delivery.content}
+            onCreateAnnotation={addDraftItem}
+            onCreateInteractive={addDraftItem}
+          />
 
-          {hasFeedbackSchema && (
-            <div style={styles.feedbackSection}>
-              <h2 style={styles.sectionTitle}>{t('yourFeedback')}</h2>
-              <FeedbackRenderer
-                schema={delivery.feedback_schema}
-                onSubmit={handleFeedbackSubmit}
-              />
+          <section style={styles.feedbackState}>
+            <h3 style={styles.feedbackStateTitle}>Feedback Processing State</h3>
+            <div style={styles.feedbackStateBody}>
+              <div>Pending feedback entries: {pendingCount}</div>
+              <div>Resolved feedback entries: {(delivery.feedback || []).length - pendingCount}</div>
             </div>
-          )}
+          </section>
+        </main>
 
-          {feedbackSubmitted && delivery.feedback && delivery.feedback.length > 0 && (
-            <div style={styles.feedbackDone}>
-              <div style={styles.feedbackDoneIcon}>{'\u2713'}</div>
-              <div>
-                <strong>{t('feedbackSubmitted')}</strong>
-                <pre style={styles.feedbackPreview}>
-                  {JSON.stringify(delivery.feedback[delivery.feedback.length - 1].values, null, 2)}
-                </pre>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={styles.sidebar}>
-          <div style={styles.sidebarHeader}>
-            <h3 style={styles.sidebarTitle}>{t('annotations')}</h3>
-            <button
-              onClick={() => setShowAnnotationInput(!showAnnotationInput)}
-              style={styles.addBtn}
-            >
-              {t('addComment')}
-            </button>
-          </div>
-
-          {showAnnotationInput && (
-            <div style={styles.annotationInput}>
-              <textarea
-                value={annotationText}
-                onChange={e => setAnnotationText(e.target.value)}
-                placeholder={t('addCommentPlaceholder')}
-                style={styles.textarea}
-                rows={3}
-              />
-              <div style={styles.annotationActions}>
-                <button onClick={handleAddAnnotation} style={styles.submitBtn}>{t('submit')}</button>
-                <button onClick={() => { setShowAnnotationInput(false); setAnnotationText(''); }} style={styles.cancelBtn}>{t('cancel')}</button>
-              </div>
-            </div>
-          )}
-
-          <AnnotationSidebar annotations={delivery.annotations || []} />
-        </div>
+        <FeedbackSidebar
+          drafts={drafts}
+          feedback={delivery.feedback || []}
+          onRemoveDraft={removeDraftItem}
+          onAddInteractive={addDraftItem}
+          onCommit={handleCommit}
+          submitting={submitting}
+        />
       </div>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    maxWidth: '1100px',
+  page: {
+    maxWidth: '1240px',
     margin: '0 auto',
     padding: 'var(--vds-spacing-page-padding)',
   },
@@ -194,160 +191,93 @@ const styles = {
     color: 'var(--vds-colors-danger)',
   },
   header: {
-    marginBottom: '24px',
+    marginBottom: '16px',
   },
   backLink: {
     color: 'var(--vds-colors-text-secondary)',
     fontSize: '14px',
     display: 'inline-block',
-    marginBottom: '12px',
+    marginBottom: '10px',
   },
-  headerRight: {},
-  title: {
-    fontSize: '22px',
-    fontWeight: '600',
-    color: 'var(--vds-colors-text)',
+  titleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
     marginBottom: '8px',
   },
-  meta: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    fontSize: '13px',
-    color: 'var(--vds-colors-text-secondary)',
-  },
-  badge: {
-    padding: '2px 8px',
-    borderRadius: '12px',
-    fontSize: '11px',
-    fontWeight: '500',
-    textTransform: 'uppercase',
-  },
-  badgePassive: {
-    background: 'var(--vds-colors-surface)',
-    color: 'var(--vds-colors-text-secondary)',
-    border: '1px solid var(--vds-colors-border)',
-  },
-  badgeInteractive: {
-    background: 'var(--vds-colors-interactive-bg)',
-    color: '#C2410C',
-    border: '1px solid var(--vds-colors-interactive-border)',
-  },
-  badgeBlocking: {
-    background: 'var(--vds-colors-blocking-bg)',
-    color: 'var(--vds-colors-danger)',
-    border: '1px solid var(--vds-colors-blocking-border)',
-  },
-  waitingBanner: {
-    background: 'var(--vds-colors-blocking-bg)',
-    border: '1px solid var(--vds-colors-blocking-border)',
-    color: 'var(--vds-colors-danger)',
-    padding: '12px 16px',
-    borderRadius: 'var(--vds-spacing-border-radius)',
-    fontWeight: '500',
-    marginBottom: '24px',
-    textAlign: 'center',
-  },
-  body: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 300px',
-    gap: '24px',
-  },
-  contentArea: {},
-  feedbackSection: {
-    marginTop: '32px',
-    padding: '24px',
-    background: 'var(--vds-colors-surface)',
-    border: '1px solid var(--vds-colors-border)',
-    borderRadius: 'var(--vds-spacing-border-radius)',
-  },
-  sectionTitle: {
-    fontSize: '16px',
-    fontWeight: '600',
-    marginBottom: '16px',
-  },
-  feedbackDone: {
-    marginTop: '24px',
-    display: 'flex',
-    gap: '12px',
-    padding: '16px',
-    background: '#F0FDF4',
-    border: '1px solid #BBF7D0',
-    borderRadius: 'var(--vds-spacing-border-radius)',
-  },
-  feedbackDoneIcon: {
-    color: 'var(--vds-colors-success)',
-    fontSize: '20px',
-    fontWeight: 'bold',
-  },
-  feedbackPreview: {
-    marginTop: '8px',
-    fontSize: '12px',
-    background: 'var(--vds-colors-surface)',
-    padding: '8px',
-    borderRadius: '4px',
-    overflow: 'auto',
-    fontFamily: 'var(--vds-typography-font-family-mono)',
-  },
-  sidebar: {
-    borderLeft: '1px solid var(--vds-colors-border)',
-    paddingLeft: '24px',
-  },
-  sidebarHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '16px',
-  },
-  sidebarTitle: {
-    fontSize: '14px',
-    fontWeight: '600',
+  title: {
+    fontSize: '24px',
     color: 'var(--vds-colors-text)',
   },
-  addBtn: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--vds-colors-primary)',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontFamily: 'inherit',
+  modeBadge: {
+    textTransform: 'uppercase',
+    fontSize: '11px',
+    borderRadius: '999px',
+    padding: '3px 10px',
+    border: '1px solid transparent',
+    fontWeight: '600',
   },
-  annotationInput: {
-    marginBottom: '16px',
+  modeTask: {
+    background: '#ECFEFF',
+    color: '#155E75',
+    borderColor: '#A5F3FC',
   },
-  textarea: {
-    width: '100%',
-    padding: '8px 12px',
-    border: '1px solid var(--vds-colors-border)',
-    borderRadius: 'var(--vds-spacing-border-radius)',
-    fontFamily: 'inherit',
-    fontSize: '13px',
-    resize: 'vertical',
-    outline: 'none',
+  modeAlign: {
+    background: '#FFFBEB',
+    color: '#92400E',
+    borderColor: '#FCD34D',
   },
-  annotationActions: {
+  metaRow: {
     display: 'flex',
-    gap: '8px',
-    marginTop: '8px',
-  },
-  submitBtn: {
-    padding: '6px 14px',
-    background: 'var(--vds-colors-primary)',
-    color: 'white',
-    border: 'none',
-    borderRadius: 'var(--vds-spacing-border-radius)',
-    cursor: 'pointer',
+    gap: '12px',
     fontSize: '13px',
-    fontFamily: 'inherit',
-  },
-  cancelBtn: {
-    padding: '6px 14px',
-    background: 'transparent',
     color: 'var(--vds-colors-text-secondary)',
+  },
+  sourceInfo: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '8px',
+    padding: '12px',
     border: '1px solid var(--vds-colors-border)',
-    borderRadius: 'var(--vds-spacing-border-radius)',
-    cursor: 'pointer',
+    borderRadius: '12px',
+    background: 'var(--vds-colors-surface)',
+    marginBottom: '14px',
     fontSize: '13px',
-    fontFamily: 'inherit',
+  },
+  alignmentNotice: {
+    border: '1px solid #FCD34D',
+    background: '#FFFBEB',
+    color: '#92400E',
+    borderRadius: '10px',
+    padding: '10px 12px',
+    marginBottom: '14px',
+    fontSize: '13px',
+  },
+  layout: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: '16px',
+  },
+  main: {
+    minWidth: 0,
+    flex: '1 1 680px',
+  },
+  feedbackState: {
+    marginTop: '14px',
+    border: '1px solid var(--vds-colors-border)',
+    borderRadius: '12px',
+    background: 'var(--vds-colors-surface)',
+    padding: '12px',
+  },
+  feedbackStateTitle: {
+    fontSize: '14px',
+    marginBottom: '8px',
+  },
+  feedbackStateBody: {
+    display: 'flex',
+    gap: '12px',
+    fontSize: '13px',
+    color: 'var(--vds-colors-text-secondary)',
   },
 };

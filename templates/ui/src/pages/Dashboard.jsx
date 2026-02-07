@@ -1,111 +1,94 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDeliveries } from '../hooks/useDeliveries';
-import { t } from '../lib/i18n';
 
-const MODE_FILTERS = ['all', 'passive', 'interactive', 'blocking'];
-
-const STATUS_ICONS = {
-  delivered: '\u25CB',
-  awaiting_feedback: '\u25CF',
-  completed: '\u2713',
-  timeout: '\u25CB'
-};
+const MODE_FILTERS = ['all', 'task_delivery', 'alignment'];
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return t('justNow');
-  if (minutes < 60) return t('minAgo', { n: minutes });
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t('hoursAgo', { n: hours });
-  const days = Math.floor(hours / 24);
-  return t('daysAgo', { n: days });
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour}h ago`;
+  const day = Math.floor(hour / 24);
+  return `${day}d ago`;
 }
-
-const MODE_LABELS = { all: 'all', passive: 'passive', interactive: 'interactive', blocking: 'blocking' };
 
 export default function Dashboard() {
   const { deliveries, loading, error } = useDeliveries();
   const [filter, setFilter] = useState('all');
 
-  const filtered = filter === 'all'
-    ? deliveries
-    : deliveries.filter(d => d.mode === filter);
+  const filtered = useMemo(() => {
+    const byMode = filter === 'all' ? deliveries : deliveries.filter((item) => item.mode === filter);
+    return [...byMode].sort((a, b) => {
+      if (a.status === 'pending_feedback' && b.status !== 'pending_feedback') return -1;
+      if (a.status !== 'pending_feedback' && b.status === 'pending_feedback') return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [deliveries, filter]);
 
-  // Sort: blocking first, then by created_at desc
-  const sorted = [...filtered].sort((a, b) => {
-    if (a.mode === 'blocking' && a.status === 'awaiting_feedback') return -1;
-    if (b.mode === 'blocking' && b.status === 'awaiting_feedback') return 1;
-    return new Date(b.created_at) - new Date(a.created_at);
-  });
-
-  const blockingDeliveries = deliveries.filter(
-    d => d.mode === 'blocking' && d.status === 'awaiting_feedback'
+  const activeAlignment = deliveries.find(
+    (item) => item.mode === 'alignment' && item.alignment_state === 'active'
   );
 
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.title}>{t('appTitle')}</h1>
-        <Link to="/settings" style={styles.settingsLink}>{t('settings')}</Link>
+        <h1 style={styles.title}>Visual Delivery</h1>
+        <Link to="/settings" style={styles.settingsLink}>Settings</Link>
       </header>
 
-      {blockingDeliveries.length > 0 && (
-        <div style={styles.blockingAlert}>
-          <div style={styles.blockingAlertIcon}>!</div>
-          <div style={styles.blockingAlertContent}>
-            <strong>{t('agentWaiting')}</strong>
-            <div style={styles.blockingAlertLinks}>
-              {blockingDeliveries.map(d => (
-                <Link key={d.id} to={`/d/${d.id}`} style={styles.blockingAlertLink}>
-                  {d.title}
-                </Link>
-              ))}
-            </div>
-          </div>
+      {activeAlignment && (
+        <div style={styles.alignmentBanner}>
+          <div style={styles.bannerTitle}>Active Alignment</div>
+          <Link to={`/d/${activeAlignment.id}`} style={styles.bannerLink}>
+            {activeAlignment.title}
+          </Link>
         </div>
       )}
 
       <div style={styles.filters}>
-        {MODE_FILTERS.map(m => (
+        {MODE_FILTERS.map((mode) => (
           <button
-            key={m}
-            onClick={() => setFilter(m)}
+            key={mode}
+            onClick={() => setFilter(mode)}
             style={{
               ...styles.filterBtn,
-              ...(filter === m ? styles.filterBtnActive : {})
+              ...(filter === mode ? styles.filterBtnActive : {}),
             }}
           >
-            {t(m)}
+            {mode}
           </button>
         ))}
       </div>
 
-      {loading && <div style={styles.empty}>{t('loading')}</div>}
+      {loading && <div style={styles.empty}>Loading deliveries...</div>}
       {error && <div style={styles.error}>Error: {error}</div>}
-      {!loading && sorted.length === 0 && (
-        <div style={styles.empty}>{t('noDeliveries')}</div>
+
+      {!loading && filtered.length === 0 && (
+        <div style={styles.empty}>No deliveries yet.</div>
       )}
 
       <div style={styles.list}>
-        {sorted.map(d => (
-          <Link key={d.id} to={`/d/${d.id}`} style={styles.card}>
-            <div style={styles.cardHeader}>
-              <span style={styles.statusIcon}>{STATUS_ICONS[d.status] || '\u25CB'}</span>
-              <span style={styles.cardTitle}>{d.title}</span>
-              <span style={{
-                ...styles.badge,
-                ...(d.mode === 'blocking' ? styles.badgeBlocking :
-                    d.mode === 'interactive' ? styles.badgeInteractive :
-                    styles.badgePassive)
-              }}>
-                {d.mode}
+        {filtered.map((delivery) => (
+          <Link key={delivery.id} to={`/d/${delivery.id}`} style={styles.card}>
+            <div style={styles.cardTop}>
+              <span style={styles.cardTitle}>{delivery.title}</span>
+              <span
+                style={{
+                  ...styles.status,
+                  ...(delivery.status === 'pending_feedback' ? styles.pending : styles.normal),
+                }}
+              >
+                {delivery.status}
               </span>
             </div>
+
             <div style={styles.cardMeta}>
-              <span>{d.status.replace('_', ' ')}</span>
-              <span>{timeAgo(d.created_at)}</span>
+              <span>{delivery.mode}</span>
+              {delivery.mode === 'alignment' && <span>{delivery.alignment_state || 'inactive'}</span>}
+              <span>{timeAgo(delivery.created_at)}</span>
             </div>
           </Link>
         ))}
@@ -116,7 +99,7 @@ export default function Dashboard() {
 
 const styles = {
   container: {
-    maxWidth: '800px',
+    maxWidth: '920px',
     margin: '0 auto',
     padding: 'var(--vds-spacing-page-padding)',
   },
@@ -124,74 +107,54 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '24px',
+    marginBottom: '20px',
   },
   title: {
     fontSize: '24px',
-    fontWeight: '600',
     color: 'var(--vds-colors-text)',
   },
   settingsLink: {
     color: 'var(--vds-colors-text-secondary)',
     fontSize: '14px',
   },
-  blockingAlert: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '12px',
-    padding: '16px',
-    background: 'var(--vds-colors-blocking-bg)',
-    border: '1px solid var(--vds-colors-blocking-border)',
-    borderRadius: 'var(--vds-spacing-border-radius)',
-    marginBottom: '24px',
-    animation: 'pulse 2s ease-in-out infinite',
+  alignmentBanner: {
+    border: '1px solid #FCD34D',
+    background: '#FFFBEB',
+    borderRadius: '12px',
+    padding: '12px',
+    marginBottom: '16px',
   },
-  blockingAlertIcon: {
-    width: '24px',
-    height: '24px',
-    borderRadius: '50%',
-    background: 'var(--vds-colors-danger)',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 'bold',
-    fontSize: '14px',
-    flexShrink: 0,
+  bannerTitle: {
+    fontSize: '12px',
+    textTransform: 'uppercase',
+    color: '#92400E',
+    marginBottom: '4px',
   },
-  blockingAlertContent: {
-    flex: 1,
-  },
-  blockingAlertLinks: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    marginTop: '8px',
-  },
-  blockingAlertLink: {
-    color: 'var(--vds-colors-danger)',
-    fontWeight: '500',
-    fontSize: '14px',
+  bannerLink: {
+    fontSize: '15px',
+    color: '#92400E',
+    fontWeight: '600',
+    textDecoration: 'none',
   },
   filters: {
     display: 'flex',
     gap: '8px',
-    marginBottom: '16px',
+    marginBottom: '12px',
   },
   filterBtn: {
-    padding: '6px 14px',
-    borderRadius: 'var(--vds-spacing-border-radius)',
     border: '1px solid var(--vds-colors-border)',
-    background: 'transparent',
-    color: 'var(--vds-colors-text-secondary)',
+    borderRadius: '999px',
+    background: 'white',
+    padding: '6px 12px',
+    fontSize: '12px',
     cursor: 'pointer',
-    fontSize: '13px',
+    color: 'var(--vds-colors-text-secondary)',
     fontFamily: 'inherit',
   },
   filterBtnActive: {
     background: 'var(--vds-colors-primary)',
-    color: 'white',
     borderColor: 'var(--vds-colors-primary)',
+    color: 'white',
   },
   list: {
     display: 'flex',
@@ -199,67 +162,56 @@ const styles = {
     gap: '8px',
   },
   card: {
-    display: 'block',
-    padding: 'var(--vds-spacing-card-padding)',
-    background: 'var(--vds-colors-surface)',
     border: '1px solid var(--vds-colors-border)',
-    borderRadius: 'var(--vds-spacing-border-radius)',
+    borderRadius: '12px',
+    padding: '12px',
     textDecoration: 'none',
     color: 'inherit',
-    transition: 'border-color 0.15s',
+    background: 'white',
   },
-  cardHeader: {
+  cardTop: {
     display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'center',
     gap: '8px',
   },
-  statusIcon: {
-    fontSize: '12px',
-    color: 'var(--vds-colors-primary)',
-  },
   cardTitle: {
-    flex: 1,
-    fontWeight: '500',
+    fontSize: '15px',
     color: 'var(--vds-colors-text)',
+    fontWeight: '600',
   },
-  badge: {
-    padding: '2px 8px',
-    borderRadius: '12px',
+  status: {
     fontSize: '11px',
-    fontWeight: '500',
+    borderRadius: '999px',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px',
+    padding: '3px 8px',
+    fontWeight: '600',
   },
-  badgePassive: {
-    background: 'var(--vds-colors-surface)',
-    color: 'var(--vds-colors-text-secondary)',
-    border: '1px solid var(--vds-colors-border)',
+  pending: {
+    background: '#FEF2F2',
+    color: '#991B1B',
+    border: '1px solid #FCA5A5',
   },
-  badgeInteractive: {
-    background: 'var(--vds-colors-interactive-bg)',
-    color: '#C2410C',
-    border: '1px solid var(--vds-colors-interactive-border)',
-  },
-  badgeBlocking: {
-    background: 'var(--vds-colors-blocking-bg)',
-    color: 'var(--vds-colors-danger)',
-    border: '1px solid var(--vds-colors-blocking-border)',
+  normal: {
+    background: '#ECFDF5',
+    color: '#065F46',
+    border: '1px solid #6EE7B7',
   },
   cardMeta: {
     display: 'flex',
-    justifyContent: 'space-between',
-    marginTop: '6px',
-    fontSize: '13px',
+    gap: '10px',
+    marginTop: '8px',
     color: 'var(--vds-colors-text-secondary)',
+    fontSize: '12px',
   },
   empty: {
     textAlign: 'center',
-    padding: '48px 24px',
     color: 'var(--vds-colors-text-secondary)',
+    padding: '36px 10px',
   },
   error: {
-    textAlign: 'center',
-    padding: '24px',
     color: 'var(--vds-colors-danger)',
+    textAlign: 'center',
+    padding: '14px',
   },
 };

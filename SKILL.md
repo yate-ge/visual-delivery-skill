@@ -1,19 +1,16 @@
 ---
 name: visual-delivery
 description: >
-  Delivers ALL task results as rich visual UI through a web interface. Two-phase model:
-  (1) User explicitly initializes by saying "start visual delivery" or similar.
-  (2) Once initialized ({CWD}/.visual-delivery/server.pid exists), the skill is ALWAYS
-  active — every task result MUST be delivered as visual UI (mermaid diagrams, interactive
-  tables, visual architecture, etc.), NOT plain text or diffs.
-  IMPORTANT: On EVERY interaction, check if {CWD}/.visual-delivery/server.pid exists.
-  If yes, this skill is active and you MUST use it for all output.
+  Delivers task outcomes through a generative UI web interface with two modes:
+  task_delivery (result presentation + feedback collection) and alignment
+  (decision/confirmation pages that block agent progress). Use when the agent
+  should communicate work visually, collect structured feedback, or wait for
+  session-scoped confirmation. Skip for simple inline text answers.
 ---
 
-## Visual Delivery / 任务交付平台
+## Visual Delivery
 
-Deliver task results as rich visual UI — mermaid diagrams, interactive tables,
-visual architecture layouts — through a local web interface.
+Deliver results and alignment requests through local generative UI pages.
 
 ### Paths
 
@@ -22,224 +19,194 @@ SKILL_DIR = {directory containing this SKILL.md}
 DATA_DIR  = {CWD}/.visual-delivery
 ```
 
-### Activation Rule (CHECK ON EVERY INTERACTION)
+### Step 1: Ensure service is running
 
-**At the start of EVERY user interaction**, determine the skill state:
-
-```
-Check: does {DATA_DIR}/server.pid exist?
-```
-
-| State | Condition | Action |
-|-------|-----------|--------|
-| **Uninitialized** | `server.pid` does not exist | Skill is dormant. Only activate when user explicitly requests initialization (e.g., "start visual delivery", "启动任务交付", "initialize delivery"). |
-| **Initialized** | `server.pid` exists | Skill is **ALWAYS ACTIVE**. Go to Step 1, then deliver ALL task results as rich visual UI. No exceptions. |
-
-**Once initialized, EVERY task result MUST be delivered as rich visual UI.** This includes:
-- Architecture designs → mermaid diagrams + visual layout
-- Code analysis results → interactive tables, visual dependency graphs
-- Investigation reports → structured visual summaries
-- File changes → visual diff with interactive review
-- Test results → visual dashboard
-- Any structured output → appropriate visual representation
-
-The ONLY things that stay as plain text:
-- Direct conversational replies (greetings, short clarifications, yes/no answers)
-- Error messages about the skill itself failing
-
-### Step 0: Explicit initialization (first time only)
-
-When the user explicitly requests initialization:
-
-**Detect user language**: If the user communicates in Chinese, use `--lang zh`. Otherwise use `--lang en`.
-
-Tell user: "Starting Visual Delivery service..." / "正在启动任务交付平台..."
+Tell user: "Starting Visual Delivery service..."
 
 ```bash
-node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR} --lang {LANG}
+node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR}
 ```
 
-Parse JSON from stdout. Handle these statuses:
+Parse stdout JSON:
 
 | `status` | Action |
 |----------|--------|
-| `started` | Continue. If `first_run` is true, tell user about the design spec path. |
-| `already_running` | Continue, no action needed |
-| `error` | Tell user the error `message`. Stop. |
+| `started` | Continue. If `first_run` is true, tell user where design spec is created. |
+| `already_running` | Continue. |
+| `error` | Tell user the `message` and stop. |
 
-Tell user: "Visual Delivery ready at {local_url}" / "任务交付平台已就绪：{local_url}"
+Tell user: "Visual Delivery ready at {local_url}".
 
-**After successful initialization, ask user about remote access:**
+### Step 2: Choose mode
 
-Tell user (adapt to their language):
-> The service is running locally at {local_url}.
-> If you need remote access, you have two options:
-> 1. Ensure port 3847 is open on your network for direct access
-> 2. I can start a temporary tunnel (requires cloudflared) for a public URL
->
-> Do you need remote access? (If not, we'll continue with local access only.)
+- Use **task_delivery** for visual task reporting and feedback collection.
+- Use **alignment** for session-scoped decisions where agent needs confirmation.
 
-If user wants tunnel:
-```bash
-node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR} --remote
-```
+### Step 3: Build UI spec
 
-**After successful initialization, the skill is now ALWAYS ACTIVE for this project.**
+Always generate `content.type = "ui_spec"` and include:
 
+- `metadata`: `project_name`, `task_name`, `generated_at`, `audience`
+- `ui_spec.version = "2.0"`
+- `ui_spec.layout`
+- `ui_spec.components`
+- `ui_spec.bindings`
+- `ui_spec.feedback_hooks`
+- `ui_spec.sidebar_contract`
 
-### Step 1: Ensure service is running (every interaction when initialized)
+Pipeline (strict):
 
-Before delivering results, verify the server is healthy:
+1. Requirement Confirm: define goals, audience, key decision points.
+2. Information Architecture: define sections and evidence mapping.
+3. Interaction Strategy: include content interaction + annotation feedback + interactive feedback.
+4. UI Spec Generation: output `ui_spec v2`.
+5. Validation & Publish: ensure schema validity and feedback path completeness.
 
-```bash
-curl -s http://localhost:3847/health
-```
+### Step 4: Create delivery
 
-If healthy → proceed to Step 2.
+#### Task delivery
 
-If NOT healthy → restart the server (detect user language for --lang):
-
-```bash
-node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR} --lang {LANG}
-```
-
-### Step 2: Deliver results as RICH VISUAL UI
-
-**CRITICAL: You are NOT delivering plain text, diffs, or simple markdown.**
-**You are generating VISUAL UI CODE — HTML with embedded CSS/JS that creates interactive, visual experiences.**
-
-Choose the delivery mode, then generate rich visual content:
-
-- You want to **SHOW** visual results → `passive`
-- You want to **COLLECT** feedback via interactive UI → `interactive`
-- You **CANNOT** continue without user input → `blocking`
-
-#### Content types
-
-Choose the best content type for each delivery:
-
-**`markdown` with mermaid** — For content that benefits from diagrams:
-```json
-{
-  "type": "markdown",
-  "body": "## Architecture Overview\n\n```mermaid\ngraph TD\n  A[Client] --> B[API Gateway]\n  B --> C[Service A]\n  B --> D[Service B]\n```\n\nThe system uses a microservices architecture..."
-}
-```
-
-**`html`** — For rich interactive content (PREFERRED for complex results):
-```json
-{
-  "type": "html",
-  "body": "<div id='app'>...</div><style>...</style><script>...</script>"
-}
-```
-
-When generating HTML content, create SELF-CONTAINED HTML with:
-- Inline `<style>` for styling (use CSS variables from the host: `var(--vds-colors-primary)`, etc.)
-- Inline `<script>` for interactivity
-- CDN libraries when needed (e.g., mermaid from CDN for complex diagrams)
-- No external dependencies that require npm install
-
-#### Visual content examples
-
-**Architecture design** → Mermaid diagram + visual component layout:
-```json
-{
-  "type": "html",
-  "body": "<div><div id='diagram'></div><script src='https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'></script><script>mermaid.initialize({startOnLoad:true}); document.getElementById('diagram').innerHTML = '<div class=\"mermaid\">graph TD\\n  A-->B</div>'; mermaid.run();</script></div>"
-}
-```
-
-**Interactive confirmation table** → Checkboxes for user to review items:
-```json
-{
-  "type": "html",
-  "body": "<style>.item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--vds-colors-border)}.item:hover{background:var(--vds-colors-surface)}.item input{width:18px;height:18px}.confirmed{color:var(--vds-colors-success)}</style><div id='items'></div><script>const items=[{name:'Item 1',status:'pending'},{name:'Item 2',status:'pending'}];function render(){document.getElementById('items').innerHTML=items.map((it,i)=>`<div class='item'><input type='checkbox' ${it.status==='confirmed'?'checked':''} onchange='toggle(${i})'><span class='${it.status}'>${it.name}</span></div>`).join('')}function toggle(i){items[i].status=items[i].status==='confirmed'?'pending':'confirmed';render()}render();</script>"
-}
-```
-
-**Visual summary with metrics** → Dashboard-style layout:
-```json
-{
-  "type": "html",
-  "body": "<style>.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}.card{padding:20px;background:var(--vds-colors-surface);border:1px solid var(--vds-colors-border);border-radius:var(--vds-spacing-border-radius)}.card h3{font-size:13px;color:var(--vds-colors-text-secondary);margin:0 0 8px}.card .value{font-size:28px;font-weight:600;color:var(--vds-colors-text)}</style><div class='grid'><div class='card'><h3>Files Changed</h3><div class='value'>12</div></div><div class='card'><h3>Lines Added</h3><div class='value'>+340</div></div></div>"
-}
-```
-
-#### Passive delivery
-
-Tell user: "Preparing visual delivery..." / "正在准备可视化交付..."
+Tell user: "Preparing visual task delivery..."
 
 ```bash
 curl -s -X POST http://localhost:3847/api/deliveries \
   -H 'Content-Type: application/json' \
   -d '{
-    "mode": "passive",
+    "mode": "task_delivery",
     "title": "YOUR TITLE",
-    "content": {"type": "html", "body": "YOUR RICH HTML CONTENT"}
+    "metadata": {
+      "project_name": "YOUR PROJECT",
+      "task_name": "YOUR TASK",
+      "generated_at": "ISO_TIME",
+      "audience": "stakeholder"
+    },
+    "content": {
+      "type": "ui_spec",
+      "ui_spec": YOUR_UI_SPEC_JSON
+    }
   }'
 ```
 
-Tell user: "View the delivery at {url}" / "查看交付结果：{url}"
+Tell user: "View the delivery at {url}".
 
-#### Interactive delivery
+#### Alignment delivery (session-unique)
+
+Tell user: "Creating alignment page for your confirmation..."
 
 ```bash
 curl -s -X POST http://localhost:3847/api/deliveries \
   -H 'Content-Type: application/json' \
   -d '{
-    "mode": "interactive",
-    "title": "YOUR TITLE",
-    "content": {"type": "html", "body": "YOUR RICH HTML CONTENT"},
-    "feedback_schema": YOUR_SCHEMA
+    "mode": "alignment",
+    "title": "YOUR ALIGNMENT TITLE",
+    "agent_session_id": "YOUR_AGENT_SESSION_ID",
+    "thread_id": "YOUR_WAIT_THREAD_ID",
+    "metadata": {
+      "project_name": "YOUR PROJECT",
+      "task_name": "YOUR TASK",
+      "generated_at": "ISO_TIME",
+      "audience": "decision-maker"
+    },
+    "content": {
+      "type": "ui_spec",
+      "ui_spec": YOUR_UI_SPEC_JSON
+    }
   }'
 ```
 
-See [references/feedback-schema.md](references/feedback-schema.md) for schema types.
+Rules:
 
-#### Blocking delivery
+- One active alignment per `agent_session_id`.
+- New alignment replaces old active alignment and marks old one as canceled.
+- If wait thread closes, alignment must be canceled.
 
-Tell user: "I need your input." / "需要您的确认。"
+### Step 5: Wait for alignment feedback
+
+Use wait script for blocking flow:
 
 ```bash
 node {SKILL_DIR}/scripts/await-feedback.js \
-  --title "YOUR TITLE" \
-  --content "YOUR MARKDOWN OR HTML CONTENT" \
-  --schema '{"type":"select","prompt":"YOUR PROMPT","options":["opt1","opt2"]}'
+  --title "YOUR ALIGNMENT TITLE" \
+  --agent-session-id "YOUR_AGENT_SESSION_ID" \
+  --thread-id "YOUR_WAIT_THREAD_ID" \
+  --ui-spec-file "YOUR_UI_SPEC_FILE.json" \
+  --metadata '{"project_name":"...","task_name":"..."}'
 ```
 
-Parse JSON from stdout:
+Script semantics:
 
-| `status` | Action |
-|----------|--------|
-| `responded` | Process `response`, tell user thanks |
-| `timeout` | Tell user: "Please visit {url} when ready." Do NOT retry. |
-| `error` | Tell user the error message. |
+- registers/upserts alignment
+- heartbeat every 2 seconds
+- if thread exits, alignment is canceled
+- if user submits feedback, script returns `status: responded`
+- timeout returns `status: timeout` and cancels alignment
 
-### Step 3: Read feedback and annotations
+### Step 6: Feedback lifecycle
 
-```
-Read {DATA_DIR}/data/deliveries/{id}/feedback.json
-Read {DATA_DIR}/data/deliveries/{id}/annotations.json
-```
+All UI feedback flows through sidebar and one confirm submit button.
 
-### Step 4: Design customization (when requested)
-
-1. Read `{DATA_DIR}/design/design-spec.md`
-2. Read `{DATA_DIR}/design/tokens.json`
-3. Update `{DATA_DIR}/design/tokens.json`
-4. Tell user: "Design tokens updated. The UI will refresh automatically."
-
-### Deactivation
-
-When the user says "stop visual delivery" / "停止任务交付" or similar:
+- Draft stage:
 
 ```bash
-node {SKILL_DIR}/scripts/stop.js --data-dir {DATA_DIR}
+POST /api/deliveries/:id/feedback/draft
 ```
+
+- Commit stage:
+
+```bash
+POST /api/deliveries/:id/feedback/commit
+```
+
+- Agent resolve stage:
+
+```bash
+POST /api/deliveries/:id/feedback/resolve
+```
+
+Delivery status logic:
+
+- `pending_feedback`: any feedback item has `handled=false`
+- `normal`: all feedback items handled
+
+### Step 7: Alignment lifecycle operations
+
+- Get active alignment:
+
+```bash
+GET /api/alignment/active?agent_session_id=...
+```
+
+- Cancel active alignment:
+
+```bash
+POST /api/alignment/cancel
+```
+
+- Resolve active alignment (after agent receives confirmation):
+
+```bash
+POST /api/alignment/resolve
+```
+
+### Step 8: Design and platform settings
+
+- Read current design tokens:
+
+```bash
+GET /api/design-tokens
+```
+
+- Read/update platform fields (`name`, `logo_url`, `slogan`, `visual_style`):
+
+```bash
+GET /api/settings
+PUT /api/settings
+```
+
+Tell user after update: "Settings updated. The UI refreshes in real time."
 
 ### References
 
-- [references/feedback-schema.md](references/feedback-schema.md) — Feedback schema types
-- [references/api.md](references/api.md) — API endpoints
-- [references/design-system.md](references/design-system.md) — Design system tokens
+- API endpoints: [references/api.md](references/api.md)
+- Feedback payload model: [references/feedback-schema.md](references/feedback-schema.md)
+- Design tokens: [references/design-system.md](references/design-system.md)

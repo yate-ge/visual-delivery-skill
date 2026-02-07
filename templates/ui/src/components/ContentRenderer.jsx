@@ -1,35 +1,38 @@
-import { useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
-import MermaidDiagram from './MermaidDiagram';
+import RuntimeRenderer from './runtime/RuntimeRenderer';
 
-export default function ContentRenderer({ content }) {
+export default function ContentRenderer({ content, onCreateAnnotation, onCreateInteractive }) {
   if (!content) return null;
 
-  // HTML content type — render as self-contained HTML (supports embedded scripts)
-  if (content.type === 'html') {
-    return <HtmlRenderer html={content.body} />;
+  if (content.type === 'ui_spec') {
+    return (
+      <RuntimeRenderer
+        uiSpec={content.ui_spec}
+        onCreateAnnotation={onCreateAnnotation}
+        onCreateInteractive={onCreateInteractive}
+      />
+    );
   }
 
-  // Default: markdown with enhanced rendering
+  if (content.type === 'html') {
+    return (
+      <div
+        style={styles.content}
+        dangerouslySetInnerHTML={{ __html: content.body }}
+      />
+    );
+  }
+
   return (
     <div style={styles.content}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
         components={{
-          pre: ({ children }) => (
-            <pre style={styles.pre}>{children}</pre>
-          ),
+          pre: ({ children }) => <pre style={styles.pre}>{children}</pre>,
           code: ({ inline, className, children, ...props }) => {
-            const text = String(children).replace(/\n$/, '');
-
-            // Mermaid diagram support
-            if (className === 'language-mermaid' || className?.includes('language-mermaid')) {
-              return <MermaidDiagram content={text} />;
-            }
-
             if (inline) {
               return <code style={styles.inlineCode} {...props}>{children}</code>;
             }
@@ -40,12 +43,8 @@ export default function ContentRenderer({ content }) {
               <table style={styles.table}>{children}</table>
             </div>
           ),
-          th: ({ children }) => (
-            <th style={styles.th}>{children}</th>
-          ),
-          td: ({ children }) => (
-            <td style={styles.td}>{children}</td>
-          ),
+          th: ({ children }) => <th style={styles.th}>{children}</th>,
+          td: ({ children }) => <td style={styles.td}>{children}</td>,
           a: ({ href, children }) => (
             <a href={href} target="_blank" rel="noopener noreferrer" style={styles.link}>
               {children}
@@ -56,39 +55,10 @@ export default function ContentRenderer({ content }) {
           ),
         }}
       >
-        {content.body}
+        {content.body || ''}
       </ReactMarkdown>
     </div>
   );
-}
-
-// HTML renderer with script execution support for rich interactive content
-function HtmlRenderer({ html }) {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!ref.current || !html) return;
-
-    // Set HTML
-    ref.current.innerHTML = html;
-
-    // Execute any <script> tags in the HTML content
-    const scripts = ref.current.querySelectorAll('script');
-    scripts.forEach(oldScript => {
-      const newScript = document.createElement('script');
-      // Copy attributes
-      Array.from(oldScript.attributes).forEach(attr => {
-        newScript.setAttribute(attr.name, attr.value);
-      });
-      // Copy inline content
-      if (oldScript.textContent) {
-        newScript.textContent = oldScript.textContent;
-      }
-      oldScript.parentNode.replaceChild(newScript, oldScript);
-    });
-  }, [html]);
-
-  return <div ref={ref} style={styles.content} />;
 }
 
 const styles = {
