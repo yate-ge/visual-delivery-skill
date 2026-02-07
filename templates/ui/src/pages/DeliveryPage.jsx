@@ -7,6 +7,7 @@ import {
 } from '../lib/api';
 import { eventBus } from '../lib/eventBus';
 import { t } from '../lib/i18n';
+import { useDesignTokens } from '../hooks/useDesignTokens';
 import ContentRenderer from '../components/ContentRenderer';
 import FeedbackSidebar from '../components/feedback/FeedbackSidebar';
 
@@ -63,6 +64,7 @@ function stageLabel(stage) {
 
 export default function DeliveryPage() {
   const { id } = useParams();
+  const tokens = useDesignTokens();
 
   const [delivery, setDelivery] = useState(null);
   const [drafts, setDrafts] = useState([]);
@@ -179,6 +181,7 @@ export default function DeliveryPage() {
         <main style={styles.main}>
           <ContentRenderer
             content={delivery.content}
+            tokens={tokens}
             onCreateAnnotation={addDraftItem}
             onCreateInteractive={addDraftItem}
           />

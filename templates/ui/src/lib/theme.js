@@ -18,3 +18,11 @@ export function applyTokens(tokens) {
     root.style.setProperty(`--vds-${key}`, value);
   }
 }
+
+export function tokensToCSS(tokens) {
+  if (!tokens) return '';
+  const flat = flattenTokens(tokens);
+  const lines = Object.entries(flat)
+    .map(([key, value]) => `  --vds-${key}: ${value};`);
+  return `:root {\n${lines.join('\n')}\n}`;
+}

@@ -102,32 +102,57 @@ If `remote_url` is returned, tell user the tunnel URL.
 - Use **task_delivery** for visual task reporting and feedback collection.
 - Use **alignment** for session-scoped decisions where agent needs confirmation.
 
-### Step 3: Build UI spec
+### Step 3: Generate delivery page (Generative UI)
 
-Always generate `content.type = "ui_spec"` and include:
+Generate `content.type = "generated_html"` — a complete, self-contained HTML page.
 
-- `metadata`: `project_name`, `task_name`, `generated_at`, `audience`
-- `ui_spec.version = "2.0"`
-- `ui_spec.layout`
-- `ui_spec.components`
-- `ui_spec.bindings`
-- `ui_spec.feedback_hooks`
-- `ui_spec.sidebar_contract`
+Pipeline:
 
-Pipeline (strict):
+1. **Requirement Analysis**: define goals, audience, key decision points.
+2. **Design Planning**: choose layout, visual style, interaction strategy. Read design tokens from `GET /api/design-tokens` and use `var(--vds-*)` CSS variables.
+3. **HTML Generation**: produce a full `<!DOCTYPE html>` page with inline CSS and JS. See [references/generative-ui-guide.md](references/generative-ui-guide.md) for rules.
+4. **Feedback Hooks**: embed interactive feedback elements using `data-vd-feedback-*` attributes. Annotation feedback (text selection) is automatic — no agent action needed.
+5. **Publish**: POST to `/api/deliveries`.
 
-1. Requirement Confirm: define goals, audience, key decision points.
-2. Information Architecture: define sections and evidence mapping.
-3. Interaction Strategy: include content interaction + annotation feedback + interactive feedback.
-   - For item-by-item review workflows, prefer `review_table` so users can submit `confirm/reject/change_request` per row.
-4. UI Spec Generation: output `ui_spec v2`.
-5. Validation & Publish: ensure schema validity and feedback path completeness.
+Core principles:
+
+- **Interactive first**: build functional widgets, charts, forms — not walls of text.
+- **Visual richness**: use colors, grids, cards, gradients, icons, animations.
+- **Self-contained**: single HTML string with inline `<style>` and `<script>`. No external files except CDN libraries.
+- **Design tokens**: reference `var(--vds-colors-primary)`, `var(--vds-colors-text)`, etc. The platform injects token values at runtime.
+- **Allowed CDNs**: Tailwind CSS (`https://cdn.tailwindcss.com`), Chart.js, Mermaid, D3.js, Highlight.js, and similar visualization/utility libraries.
+- **Responsive**: support desktop and mobile viewports.
+- **No placeholders**: every element must be functional with real data.
+
+Interactive feedback elements (agent embeds in HTML):
+
+```html
+<!-- Button feedback -->
+<button data-vd-feedback-action="approve"
+        data-vd-feedback-label="Approve proposal">
+  Approve
+</button>
+
+<!-- Form feedback -->
+<form data-vd-feedback-action="review_decision"
+      data-vd-feedback-label="Code review item 1">
+  <select name="decision">
+    <option value="confirm">Confirm</option>
+    <option value="reject">Reject</option>
+    <option value="change_request">Request changes</option>
+  </select>
+  <textarea name="notes" placeholder="Notes..."></textarea>
+  <button type="submit">Submit decision</button>
+</form>
+```
+
+The platform Bridge Script automatically captures these interactions and routes them to the feedback sidebar. Agent does NOT need to write any postMessage code.
 
 ### Step 4: Create delivery
 
 #### Task delivery
 
-Tell user: "Preparing visual task delivery..."
+Tell user: "Preparing visual delivery..."
 
 ```bash
 curl -s -X POST http://localhost:3847/api/deliveries \
@@ -142,8 +167,8 @@ curl -s -X POST http://localhost:3847/api/deliveries \
       "audience": "stakeholder"
     },
     "content": {
-      "type": "ui_spec",
-      "ui_spec": YOUR_UI_SPEC_JSON
+      "type": "generated_html",
+      "html": "<!DOCTYPE html><html>...YOUR GENERATED PAGE...</html>"
     }
   }'
 ```
@@ -169,8 +194,8 @@ curl -s -X POST http://localhost:3847/api/deliveries \
       "audience": "decision-maker"
     },
     "content": {
-      "type": "ui_spec",
-      "ui_spec": YOUR_UI_SPEC_JSON
+      "type": "generated_html",
+      "html": "<!DOCTYPE html><html>...YOUR GENERATED PAGE...</html>"
     }
   }'
 ```
@@ -180,6 +205,7 @@ Rules:
 - One active alignment per `agent_session_id`.
 - New alignment replaces old active alignment and marks old one as canceled.
 - If wait thread closes, alignment must be canceled.
+- Alignment content is generated HTML (same as task_delivery). The platform shell provides the submit/confirm button.
 
 ### Step 5: Wait for alignment feedback
 
@@ -269,5 +295,6 @@ Tell user after update: "Settings updated. The UI refreshes in real time."
 ### References
 
 - API endpoints: [references/api.md](references/api.md)
+- Generative UI guide: [references/generative-ui-guide.md](references/generative-ui-guide.md)
 - Feedback payload model: [references/feedback-schema.md](references/feedback-schema.md)
 - Design tokens: [references/design-system.md](references/design-system.md)

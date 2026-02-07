@@ -21,10 +21,15 @@ const DEFAULT_SETTINGS = {
   },
 };
 
-function ensureUiSpecContent(content) {
+function ensureValidContent(content) {
   if (!content || typeof content !== 'object') return false;
-  if (content.type !== 'ui_spec') return false;
-  return !!content.ui_spec && typeof content.ui_spec === 'object';
+  if (content.type === 'ui_spec') {
+    return !!content.ui_spec && typeof content.ui_spec === 'object';
+  }
+  if (content.type === 'generated_html') {
+    return typeof content.html === 'string' && content.html.length > 0;
+  }
+  return false;
 }
 
 function cleanText(value) {
@@ -460,11 +465,11 @@ function setupRoutes(app, dataDir) {
         });
       }
 
-      if (!ensureUiSpecContent(content)) {
+      if (!ensureValidContent(content)) {
         return res.status(400).json({
           error: {
             code: 'INVALID_REQUEST',
-            message: 'content must be { type: "ui_spec", ui_spec: {...} }',
+            message: 'content must be { type: "generated_html", html: "..." } or { type: "ui_spec", ui_spec: {...} }',
           },
         });
       }
@@ -848,11 +853,11 @@ function setupRoutes(app, dataDir) {
     try {
       const { title, content, metadata, agent_session_id: agentSessionId, thread_id: threadId } = req.body;
 
-      if (!title || !content || !ensureUiSpecContent(content)) {
+      if (!title || !content || !ensureValidContent(content)) {
         return res.status(400).json({
           error: {
             code: 'INVALID_REQUEST',
-            message: 'title and content(ui_spec) are required',
+            message: 'title and valid content are required',
           },
         });
       }

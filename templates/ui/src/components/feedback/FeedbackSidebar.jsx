@@ -57,7 +57,19 @@ export default function FeedbackSidebar({
               <span style={styles.badge}>{item.kind}</span>
               <button onClick={() => onRemoveDraft(item.id)} style={styles.linkBtn}>{t('remove')}</button>
             </div>
-            <pre style={styles.payload}>{JSON.stringify(item.payload, null, 2)}</pre>
+            {item.kind === 'annotation' && item.payload?.selected_text && (
+              <div style={styles.selectedTextPreview}>
+                &ldquo;{item.payload.selected_text.length > 60
+                  ? item.payload.selected_text.slice(0, 60) + '...'
+                  : item.payload.selected_text}&rdquo;
+              </div>
+            )}
+            {item.payload?.text && (
+              <div style={styles.feedbackText}>{item.payload.text}</div>
+            )}
+            {item.payload?.action && (
+              <pre style={styles.payload}>{JSON.stringify(item.payload, null, 2)}</pre>
+            )}
           </div>
         ))}
       </div>
@@ -190,6 +202,18 @@ const styles = {
     fontSize: '12px',
     cursor: 'pointer',
     fontFamily: 'inherit',
+  },
+  selectedTextPreview: {
+    fontSize: '12px',
+    fontStyle: 'italic',
+    color: 'var(--vds-colors-text-secondary)',
+    marginBottom: '4px',
+    lineHeight: '1.4',
+  },
+  feedbackText: {
+    fontSize: '13px',
+    color: 'var(--vds-colors-text)',
+    lineHeight: '1.45',
   },
   payload: {
     fontSize: '12px',

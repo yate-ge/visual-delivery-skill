@@ -47,15 +47,8 @@ Request body:
     "audience": "string"
   },
   "content": {
-    "type": "ui_spec",
-    "ui_spec": {
-      "version": "2.0",
-      "layout": {},
-      "components": [],
-      "bindings": {},
-      "feedback_hooks": {},
-      "sidebar_contract": {}
-    }
+    "type": "generated_html",
+    "html": "<!DOCTYPE html><html><head>...</head><body>...</body></html>"
   }
 }
 ```
@@ -242,8 +235,8 @@ Upsert unique active alignment by `agent_session_id`.
   "thread_id": "thread-1",
   "metadata": {...},
   "content": {
-    "type": "ui_spec",
-    "ui_spec": {...}
+    "type": "generated_html",
+    "html": "<!DOCTYPE html>..."
   }
 }
 ```

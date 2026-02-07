@@ -1,17 +1,18 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
-import RuntimeRenderer from './runtime/RuntimeRenderer';
+import GeneratedContentFrame from './GeneratedContentFrame';
 
-export default function ContentRenderer({ content, onCreateAnnotation, onCreateInteractive }) {
+export default function ContentRenderer({ content, tokens, onCreateAnnotation, onCreateInteractive }) {
   if (!content) return null;
 
-  if (content.type === 'ui_spec') {
+  if (content.type === 'generated_html') {
     return (
-      <RuntimeRenderer
-        uiSpec={content.ui_spec}
-        onCreateAnnotation={onCreateAnnotation}
-        onCreateInteractive={onCreateInteractive}
+      <GeneratedContentFrame
+        html={content.html}
+        tokens={tokens}
+        onAnnotation={onCreateAnnotation}
+        onInteractive={onCreateInteractive}
       />
     );
   }
