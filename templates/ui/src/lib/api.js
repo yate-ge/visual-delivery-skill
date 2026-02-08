@@ -117,3 +117,25 @@ export async function fetchDesignTokens() {
   await ensureOk(res, 'Failed to fetch design tokens');
   return res.json();
 }
+
+export async function revokeFeedback(deliveryId, feedbackIds) {
+  const res = await fetch(`${BASE}/api/deliveries/${deliveryId}/feedback/revoke`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ feedback_ids: feedbackIds }),
+  });
+  await ensureOk(res, 'Failed to revoke feedback');
+  return res.json();
+}
+
+export async function updateDeliveryContent(deliveryId, content, title) {
+  const body = { content };
+  if (title) body.title = title;
+  const res = await fetch(`${BASE}/api/deliveries/${deliveryId}/content`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  await ensureOk(res, 'Failed to update delivery content');
+  return res.json();
+}

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getBridgeScript } from '../lib/bridge';
+import { getLang } from '../lib/i18n';
 import { tokensToCSS } from '../lib/theme';
 
-function injectIntoHTML(html, tokens) {
-  const bridgeScript = getBridgeScript();
+function injectIntoHTML(html, tokens, lang) {
+  const bridgeScript = getBridgeScript(lang);
   const tokenStyle = tokens
     ? `<style id="vd-design-tokens">${tokensToCSS(tokens)}</style>`
     : '';
@@ -27,9 +28,10 @@ function injectIntoHTML(html, tokens) {
   return `<!DOCTYPE html><html><head>${tokenStyle}</head><body>${html}${bridgeScript}</body></html>`;
 }
 
-export default function GeneratedContentFrame({ html, tokens, onAnnotation, onInteractive }) {
+export default function GeneratedContentFrame({ html, tokens, onAnnotation, onInteractive, onReplaceDraft, drafts }) {
   const iframeRef = useRef(null);
   const [height, setHeight] = useState(400);
+  const prevDraftsRef = useRef([]);
 
   // Handle postMessage from iframe
   const handleMessage = useCallback((e) => {
@@ -52,13 +54,20 @@ export default function GeneratedContentFrame({ html, tokens, onAnnotation, onIn
         }
         break;
 
+      case 'vd:interactive-replace':
+        // Mutual exclusion: remove old draft for same item-id, different action
+        if (onReplaceDraft && e.data.oldAction && e.data.itemId) {
+          onReplaceDraft(e.data.oldAction, e.data.itemId);
+        }
+        break;
+
       case 'vd:resize':
         if (typeof e.data.height === 'number' && e.data.height > 0) {
           setHeight(e.data.height);
         }
         break;
     }
-  }, [onAnnotation, onInteractive]);
+  }, [onAnnotation, onInteractive, onReplaceDraft]);
 
   useEffect(() => {
     window.addEventListener('message', handleMessage);
@@ -75,17 +84,39 @@ export default function GeneratedContentFrame({ html, tokens, onAnnotation, onIn
     }, '*');
   }, [tokens]);
 
+  // Detect draft removals and send reset messages to iframe
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentWindow) return;
+
+    const prevDrafts = prevDraftsRef.current;
+    const currentIds = new Set((drafts || []).map((d) => d.id));
+
+    // Find drafts that were in prev but not in current (removed)
+    for (const prev of prevDrafts) {
+      if (!currentIds.has(prev.id) && prev.kind === 'interactive' && prev.payload?.action) {
+        iframe.contentWindow.postMessage({
+          type: 'vd:feedback-reset',
+          action: prev.payload.action,
+          itemId: prev.payload['item-id'] || '',
+        }, '*');
+      }
+    }
+
+    prevDraftsRef.current = drafts || [];
+  }, [drafts]);
+
   if (!html) {
     return <div style={styles.empty}>No generated content.</div>;
   }
 
-  const srcdoc = injectIntoHTML(html, tokens);
+  const srcdoc = injectIntoHTML(html, tokens, getLang());
 
   return (
     <iframe
       ref={iframeRef}
       srcDoc={srcdoc}
-      sandbox="allow-scripts allow-same-origin"
+      sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       style={{ ...styles.iframe, height: `${height}px` }}
       title="Delivery content"
     />

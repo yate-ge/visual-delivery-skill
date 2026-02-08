@@ -200,6 +200,23 @@ On submit, Bridge collects all form field values and sends:
 - Buttons with `data-vd-feedback-action` outside a form trigger on click.
 - Forms with `data-vd-feedback-action` trigger on submit and prevent default navigation.
 
+## File Links
+
+To link to local project files from within generated pages:
+
+```html
+<!-- View a local file -->
+<a href="http://localhost:3847/api/files/view?path=/absolute/path/to/file.js"
+   target="_blank">
+  View file.js
+</a>
+
+<!-- External URLs also work (sandbox allows popups) -->
+<a href="https://github.com/user/repo" target="_blank">GitHub Repo</a>
+```
+
+The `/api/files/view` endpoint serves files within the project directory with correct MIME types. Always use `target="_blank"` for links — the iframe sandbox allows popups.
+
 ## JavaScript Guidelines
 
 - Use `DOMContentLoaded` to ensure DOM is ready.

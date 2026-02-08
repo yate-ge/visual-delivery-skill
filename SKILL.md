@@ -122,6 +122,7 @@ Core principles:
 - **Self-contained**: single HTML string with inline `<style>` and `<script>`. No external files except CDN libraries.
 - **Design tokens**: reference `var(--vds-colors-primary)`, `var(--vds-colors-text)`, etc. The platform injects token values at runtime.
 - **Allowed CDNs**: Tailwind CSS (`https://cdn.tailwindcss.com`), Chart.js, Mermaid, D3.js, Highlight.js, and similar visualization/utility libraries.
+- **File links**: to reference local project files, use `http://localhost:3847/api/files/view?path=ABSOLUTE_PATH`. The platform serves files within the project directory. For external URLs, use `target="_blank"` (iframe sandbox allows popups).
 - **Responsive**: support desktop and mobile viewports.
 - **No placeholders**: every element must be functional with real data.
 - **No hidden content**: all content and feedback buttons must be fully visible by default. NEVER use `<details>`/`<summary>`, accordions, collapsible panels, or click-to-expand patterns.
@@ -258,6 +259,30 @@ Delivery status logic:
 
 - `pending_feedback`: any feedback item has `handled=false`
 - `normal`: all feedback items handled
+
+User can revoke (undo) unhandled feedback via the sidebar UI. Agent can also revoke programmatically:
+
+```bash
+POST /api/deliveries/:id/feedback/revoke
+```
+
+### Step 6b: Update delivery content (post-processing)
+
+After resolving feedback, the agent may update the delivery page with revised content:
+
+```bash
+curl -s -X PUT http://localhost:3847/api/deliveries/{DELIVERY_ID}/content \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "content": {
+      "type": "generated_html",
+      "html": "<!DOCTYPE html><html>...UPDATED PAGE...</html>"
+    },
+    "title": "Optional updated title"
+  }'
+```
+
+The UI auto-refreshes via WebSocket.
 
 ### Step 7: Alignment lifecycle operations
 

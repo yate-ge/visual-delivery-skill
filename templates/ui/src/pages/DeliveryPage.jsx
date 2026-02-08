@@ -4,6 +4,7 @@ import {
   fetchDelivery,
   saveFeedbackDraft,
   commitFeedback,
+  revokeFeedback,
 } from '../lib/api';
 import { eventBus } from '../lib/eventBus';
 import { t } from '../lib/i18n';
@@ -93,6 +94,19 @@ export default function DeliveryPage() {
     persistDrafts(next);
   }
 
+  function replaceDraftByAction(oldAction, itemId) {
+    // Remove draft with matching oldAction + item-id (mutual exclusion)
+    const next = drafts.filter((item) => {
+      if (item.kind !== 'interactive') return true;
+      const draftAction = item.payload?.action;
+      const draftItemId = item.payload?.['item-id'] || '';
+      return !(draftAction === oldAction && draftItemId === itemId);
+    });
+    if (next.length !== drafts.length) {
+      persistDrafts(next);
+    }
+  }
+
   async function handleCommit() {
     if (drafts.length === 0) return;
 
@@ -105,6 +119,15 @@ export default function DeliveryPage() {
       setError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleRevoke(feedbackId) {
+    try {
+      await revokeFeedback(id, [feedbackId]);
+      await load();
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -140,6 +163,8 @@ export default function DeliveryPage() {
             tokens={tokens}
             onCreateAnnotation={addDraftItem}
             onCreateInteractive={addDraftItem}
+            onReplaceDraft={replaceDraftByAction}
+            drafts={drafts}
           />
         </main>
 
@@ -149,6 +174,7 @@ export default function DeliveryPage() {
           onRemoveDraft={removeDraftItem}
           onAddInteractive={addDraftItem}
           onCommit={handleCommit}
+          onRevoke={handleRevoke}
           submitting={submitting}
         />
       </div>

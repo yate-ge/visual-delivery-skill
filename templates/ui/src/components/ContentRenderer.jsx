@@ -3,7 +3,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import GeneratedContentFrame from './GeneratedContentFrame';
 
-export default function ContentRenderer({ content, tokens, onCreateAnnotation, onCreateInteractive }) {
+export default function ContentRenderer({ content, tokens, onCreateAnnotation, onCreateInteractive, onReplaceDraft, drafts }) {
   if (!content) return null;
 
   if (content.type === 'generated_html') {
@@ -13,6 +13,8 @@ export default function ContentRenderer({ content, tokens, onCreateAnnotation, o
         tokens={tokens}
         onAnnotation={onCreateAnnotation}
         onInteractive={onCreateInteractive}
+        onReplaceDraft={onReplaceDraft}
+        drafts={drafts}
       />
     );
   }

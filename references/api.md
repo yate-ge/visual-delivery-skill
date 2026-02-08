@@ -207,6 +207,49 @@ Mark feedback entries handled.
 
 If all feedback is handled, status becomes `normal`.
 
+### `POST /api/deliveries/:id/feedback/revoke`
+
+Revoke (undo) unhandled feedback entries. Only removes items where `handled === false`.
+
+```json
+{
+  "feedback_ids": ["f_..."]
+}
+```
+
+Response:
+
+```json
+{
+  "delivery_id": "d_...",
+  "revoked_count": 1,
+  "status": "normal"
+}
+```
+
+### `PUT /api/deliveries/:id/content`
+
+Update delivery content (for agent post-processing after feedback).
+
+```json
+{
+  "content": {
+    "type": "generated_html",
+    "html": "<!DOCTYPE html>..."
+  },
+  "title": "Optional new title"
+}
+```
+
+Response:
+
+```json
+{
+  "delivery_id": "d_...",
+  "updated_at": "ISO datetime"
+}
+```
+
 ### `POST /api/deliveries/:id/annotate`
 
 Compatibility endpoint to quickly append annotation draft.
@@ -326,6 +369,24 @@ Returns platform configuration:
 }
 ```
 
+## File View
+
+### `GET /api/files/view?path=...`
+
+Serves local project files for viewing in generated pages. Restricted to the project directory (parent of DATA_DIR).
+
+Query params:
+
+- `path` (required) — absolute or relative file path
+
+Response: file content with detected MIME type.
+
+Error codes:
+
+- `INVALID_REQUEST` (400) — missing path
+- `FORBIDDEN` (403) — path outside project directory
+- `NOT_FOUND` (404) — file does not exist
+
 ## Design Tokens
 
 ### `GET /api/design-tokens`
@@ -343,6 +404,8 @@ Server-to-client events:
 - `alignment_update`
 - `settings_updated`
 - `design_updated`
+- `content_updated`
+- `feedback_revoked`
 
 Event payload shape:
 

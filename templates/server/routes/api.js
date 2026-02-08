@@ -1115,6 +1115,161 @@ function setupRoutes(app, dataDir) {
     }
   });
 
+  // Serve local files (read-only, restricted to CWD parent)
+  app.get('/api/files/view', (req, res) => {
+    try {
+      const filePath = req.query.path;
+      if (!filePath) {
+        return res.status(400).json({
+          error: { code: 'INVALID_REQUEST', message: 'path query parameter is required' },
+        });
+      }
+
+      const resolved = path.resolve(filePath);
+      const cwd = path.resolve(dataDir, '..');
+      if (!resolved.startsWith(cwd)) {
+        return res.status(403).json({
+          error: { code: 'FORBIDDEN', message: 'Access restricted to project directory' },
+        });
+      }
+
+      if (!fs.existsSync(resolved)) {
+        return res.status(404).json({
+          error: { code: 'NOT_FOUND', message: 'File not found' },
+        });
+      }
+
+      const stat = fs.statSync(resolved);
+      if (!stat.isFile()) {
+        return res.status(400).json({
+          error: { code: 'INVALID_REQUEST', message: 'Path is not a file' },
+        });
+      }
+
+      const ext = path.extname(resolved).toLowerCase();
+      const mimeTypes = {
+        '.pdf': 'application/pdf',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+        '.webp': 'image/webp',
+        '.txt': 'text/plain',
+        '.json': 'application/json',
+        '.md': 'text/markdown',
+        '.html': 'text/html',
+        '.css': 'text/css',
+        '.js': 'text/javascript',
+        '.ts': 'text/typescript',
+        '.py': 'text/x-python',
+        '.csv': 'text/csv',
+      };
+
+      const contentType = mimeTypes[ext] || 'application/octet-stream';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${path.basename(resolved)}"`);
+      fs.createReadStream(resolved).pipe(res);
+    } catch (err) {
+      console.error('Error serving file:', err);
+      res.status(500).json({
+        error: { code: 'INTERNAL_ERROR', message: err.message },
+      });
+    }
+  });
+
+  // Revoke committed feedback entries (undo)
+  app.post('/api/deliveries/:id/feedback/revoke', async (req, res) => {
+    try {
+      const deliveryId = req.params.id;
+      const delivery = readDelivery(deliveryId);
+      if (!delivery) {
+        return res.status(404).json({
+          error: { code: 'NOT_FOUND', message: `Delivery ${deliveryId} not found` },
+        });
+      }
+
+      const { feedback_ids: feedbackIds } = req.body;
+      if (!Array.isArray(feedbackIds) || feedbackIds.length === 0) {
+        return res.status(400).json({
+          error: { code: 'INVALID_REQUEST', message: 'feedback_ids must be a non-empty array' },
+        });
+      }
+
+      const feedbackPath = deliveryFile(deliveryId, 'feedback.json');
+      let revokedCount = 0;
+
+      await updateJSON(
+        feedbackPath,
+        (items) => items.filter((item) => {
+          if (feedbackIds.includes(item.id) && item.handled === false) {
+            revokedCount += 1;
+            return false; // remove from list
+          }
+          return true;
+        }),
+        []
+      );
+
+      const updatedDelivery = await recalcDeliveryStatus(deliveryId);
+      broadcast('update_delivery', mapIndexEntry(updatedDelivery));
+      broadcast('feedback_received', { delivery_id: deliveryId });
+
+      res.status(200).json({
+        delivery_id: deliveryId,
+        revoked_count: revokedCount,
+        status: updatedDelivery.status,
+      });
+    } catch (err) {
+      console.error('Error revoking feedback:', err);
+      res.status(500).json({
+        error: { code: 'INTERNAL_ERROR', message: err.message },
+      });
+    }
+  });
+
+  // Update delivery content
+  app.put('/api/deliveries/:id/content', async (req, res) => {
+    try {
+      const deliveryId = req.params.id;
+      const delivery = readDelivery(deliveryId);
+      if (!delivery) {
+        return res.status(404).json({
+          error: { code: 'NOT_FOUND', message: `Delivery ${deliveryId} not found` },
+        });
+      }
+
+      const { content, title } = req.body;
+      if (!content || !ensureValidContent(content)) {
+        return res.status(400).json({
+          error: {
+            code: 'INVALID_REQUEST',
+            message: 'content must be { type: "generated_html", html: "..." } or { type: "ui_spec", ui_spec: {...} }',
+          },
+        });
+      }
+
+      delivery.content = content;
+      if (title) delivery.title = title;
+      delivery.updated_at = nowLocalISO();
+
+      await writeDelivery(delivery);
+      await updateIndex(delivery);
+      broadcast('update_delivery', mapIndexEntry(delivery));
+
+      res.status(200).json({
+        id: deliveryId,
+        status: delivery.status,
+        updated_at: delivery.updated_at,
+      });
+    } catch (err) {
+      console.error('Error updating delivery content:', err);
+      res.status(500).json({
+        error: { code: 'INTERNAL_ERROR', message: err.message },
+      });
+    }
+  });
+
   // Validate constants at startup (defensive)
   if (!DELIVERY_STATUSES.includes('normal') || !ALIGNMENT_STATES.includes('active')) {
     throw new Error('Invalid status configuration');
