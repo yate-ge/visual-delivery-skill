@@ -19,6 +19,16 @@ SKILL_DIR = {directory containing this SKILL.md}
 DATA_DIR  = {CWD}/.visual-delivery
 ```
 
+### Activation (CRITICAL)
+
+When this skill is invoked, IMMEDIATELY execute Step 1 below. Do NOT:
+- Output a description or summary of the skill's capabilities
+- Paraphrase the skill description from the frontmatter
+- Ask "What would you like me to help you with?" or similar open-ended questions
+- List the available modes (task_delivery / alignment) as a menu
+
+Instead, go directly to Step 1: start the service, show the URL, and ask the remote access question.
+
 ### User-facing output rules
 
 - Keep startup responses concise and task-oriented.
@@ -111,7 +121,7 @@ Pipeline:
 1. **Requirement Analysis**: define goals, audience, key decision points.
 2. **Design Planning**: choose layout, visual style, interaction strategy. Read design tokens from `GET /api/design-tokens` and use `var(--vds-*)` CSS variables.
 3. **HTML Generation**: produce a full `<!DOCTYPE html>` page with inline CSS and JS. See [references/generative-ui-guide.md](references/generative-ui-guide.md) for rules.
-4. **Feedback Hooks (REQUIRED)**: every page MUST embed at least one interactive feedback element using `data-vd-feedback-*` attributes. These must be visually prominent, dedicated buttons or forms — not hidden or attached to content elements. See [references/generative-ui-guide.md#feedback-requirements](references/generative-ui-guide.md#feedback-requirements) for patterns. Annotation feedback (text selection) is automatic — no agent action needed.
+4. **Feedback Hooks (REQUIRED)**: every reviewable item MUST have per-item choice options using `data-vd-feedback-*` button attributes. Options must be **contextually specific** to the content (not generic approve/reject). The platform auto-injects an "Other..." text-input option — do NOT generate your own. See [references/generative-ui-guide.md](references/generative-ui-guide.md) for the survey model and patterns. Annotation feedback (text selection) is automatic — no agent action needed.
 5. **Self-check**: before publishing, verify the HTML contains at least one element with `data-vd-feedback-action`. If none exists, go back to step 4.
 6. **Publish**: POST to `/api/deliveries`.
 
@@ -126,32 +136,35 @@ Core principles:
 - **Responsive**: support desktop and mobile viewports.
 - **No placeholders**: every element must be functional with real data.
 - **No hidden content**: all content and feedback buttons must be fully visible by default. NEVER use `<details>`/`<summary>`, accordions, collapsible panels, or click-to-expand patterns.
-- **Mandatory per-item feedback**: every page MUST contain `data-vd-feedback-*` buttons for each actionable item. Do NOT generate global/overall feedback forms — the platform sidebar handles that.
-- **Feedback UI separation**: `data-vd-feedback-*` attributes must ONLY be on dedicated feedback buttons/forms, never on content interaction elements. See [references/generative-ui-guide.md](references/generative-ui-guide.md) for patterns and anti-patterns.
+- **Mandatory per-item feedback (survey model)**: every reviewable item MUST have `data-vd-feedback-*` choice buttons. Options must be **contextually specific** — tailored to the actual content, not generic. Do NOT generate global/overall feedback forms — the platform sidebar handles that.
+- **Feedback = buttons only**: use only `<button>` elements with `data-vd-feedback-*`. Do NOT use `<form>`, `<select>`, or `<textarea>` for feedback. Each button click = one complete feedback action.
+- **Mutual exclusion**: all buttons for the same item share the same `data-vd-feedback-item-id`. Clicking a new option auto-deselects the previous one.
 
-Interactive feedback elements (agent embeds in HTML):
+Per-item feedback example (survey-style choices):
 
 ```html
-<!-- Button feedback -->
-<button data-vd-feedback-action="approve"
-        data-vd-feedback-label="Approve proposal">
-  Approve
-</button>
-
-<!-- Form feedback -->
-<form data-vd-feedback-action="review_decision"
-      data-vd-feedback-label="Code review item 1">
-  <select name="decision">
-    <option value="confirm">Confirm</option>
-    <option value="reject">Reject</option>
-    <option value="change_request">Request changes</option>
-  </select>
-  <textarea name="notes" placeholder="Notes..."></textarea>
-  <button type="submit">Submit decision</button>
-</form>
+<!-- Code review: contextually specific options for each issue -->
+<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px solid var(--vds-colors-border,#e2e8f0)">
+  <button data-vd-feedback-action="accept_fix"
+          data-vd-feedback-label="Issue #1: Missing null check"
+          data-vd-feedback-item-id="issue-1">
+    Accept Fix
+  </button>
+  <button data-vd-feedback-action="defer"
+          data-vd-feedback-label="Issue #1: Missing null check"
+          data-vd-feedback-item-id="issue-1">
+    Defer
+  </button>
+  <button data-vd-feedback-action="wont_fix"
+          data-vd-feedback-label="Issue #1: Missing null check"
+          data-vd-feedback-item-id="issue-1">
+    Won't Fix
+  </button>
+  <!-- "Other..." is auto-injected by the platform — do NOT add it -->
+</div>
 ```
 
-The platform Bridge Script automatically captures these interactions and routes them to the feedback sidebar. Agent does NOT need to write any postMessage code.
+The platform Bridge Script automatically captures clicks and routes them to the feedback sidebar. Agent does NOT need to write any postMessage code.
 
 ### Step 4: Create delivery
 

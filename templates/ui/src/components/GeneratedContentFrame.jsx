@@ -126,12 +126,10 @@ export default function GeneratedContentFrame({ html, tokens, onAnnotation, onIn
 const styles = {
   iframe: {
     width: '100%',
-    border: '1px solid var(--vds-colors-border)',
-    borderRadius: '12px',
+    border: 'none',
     background: '#fff',
     display: 'block',
     overflow: 'hidden',
-    transition: 'height 0.15s ease',
   },
   empty: {
     border: '1px dashed var(--vds-colors-border)',

@@ -42,7 +42,7 @@ Every generated page must be a full HTML document:
 3. **No placeholders**: every element must be functional with real data. Remove any element that cannot be fully realized.
 4. **Self-contained**: one HTML string with inline `<style>` and `<script>`. No external files except CDN libraries.
 5. **Responsive**: must look good on both desktop (1200px+) and narrow viewports (400px).
-6. **Mandatory feedback UI**: every delivery page MUST include at least one interactive feedback element (`data-vd-feedback-*`). A page without feedback components is incomplete. Do NOT generate global/overall feedback forms — the platform sidebar already provides that. Only generate per-item feedback buttons. See [Feedback requirements](#feedback-requirements) below.
+6. **Mandatory per-item feedback**: every delivery page MUST include per-item choice options (`data-vd-feedback-*` buttons) for each reviewable item. A page without feedback components is incomplete. Do NOT generate global/overall feedback — the platform sidebar handles that. Options must be contextually specific to the content. See [Per-Item Feedback (Survey Model)](#per-item-feedback-survey-model) and [Feedback Requirements](#feedback-requirements).
 7. **No hidden content**: all content and feedback buttons must be fully visible by default. NEVER use `<details>`/`<summary>`, accordions, collapsible panels, or any pattern that hides content behind a click. Users must see all information and feedback controls without extra interaction steps.
 
 ## Design Tokens
@@ -77,31 +77,38 @@ Use CDN `<script>` or `<link>` tags in `<head>`:
 
 Other well-known CDN libraries are allowed if needed.
 
-## Interactive Feedback Elements
+## Per-Item Feedback (Survey Model)
 
-The platform injects a Bridge Script that automatically captures user interactions on elements marked with `data-vd-feedback-*` attributes.
+The feedback system follows a **survey/questionnaire** model. Each item that needs user input is treated as a survey question with multiple-choice options. The user picks one option and the feedback is complete — no additional text input required.
+
+The platform injects a Bridge Script that automatically captures clicks on elements marked with `data-vd-feedback-*` attributes.
+
+### Core concept
+
+Think of every reviewable item as a **survey question**:
+
+- The **item content** (code issue, proposal section, metric) is the question context.
+- The **choice options** are `<button>` elements with `data-vd-feedback-action`. Each represents one distinct answer.
+- Options are **mutually exclusive** per item (same `data-vd-feedback-item-id`). Selecting a new option automatically deselects the previous one.
+- Clicking a predefined option is the **complete feedback action**. No text input needed.
+- The platform auto-injects an **"Other..."** option at the end of every option group. Only this option requires text input. Agent MUST NOT generate its own "Other" or free-text input.
 
 ### Design principles
 
-- **Visually distinct**: Feedback elements must be standalone, clearly visible UI components (buttons, forms). They should look like actionable controls, not blend into content.
-- **Separated from content interaction**: NEVER put `data-vd-feedback-*` on elements that also serve a content purpose (expandable sections, collapsible panels, tabs, accordion triggers, sortable headers). Content interaction and feedback submission must be completely independent.
-- **Explicit placement**: Place feedback buttons/forms in a dedicated area — below content items, in a table action column, or in a fixed action bar. The user must clearly understand "clicking this submits feedback".
+- **Contextually specific options**: Options must be tailored to the actual content, not generic. For a code review issue, use "Accept Fix / Defer / Won't Fix" — not "Approve / Reject". For an architecture proposal, use "Adopt / Need POC / Alternative Approach" — not "Yes / No".
+- **Visually distinct**: Feedback options must be standalone, clearly visible buttons. They should look like actionable controls, not blend into content.
+- **Separated from content interaction**: NEVER put `data-vd-feedback-*` on elements that also serve a content purpose (expandable sections, tabs, sortable headers).
+- **Explicit placement**: Place option groups in a dedicated area — below content items, in a table action column, or in a fixed action bar. The user must clearly understand "clicking this submits my choice".
 
 ### Anti-patterns (DO NOT do this)
 
 ```html
-<!-- WRONG: collapsible content hides details and feedback behind a click -->
+<!-- WRONG: collapsible content hides details behind a click -->
 <details>
   <summary>Issue #1: Missing null check</summary>
   <p>Details here...</p>
   <button data-vd-feedback-action="approve_fix">Approve</button>
 </details>
-
-<!-- WRONG: accordion that hides content -->
-<div class="card" onclick="toggleExpand(this)">
-  <h3>Issue #1</h3>
-  <div class="hidden-content">...</div>
-</div>
 
 <!-- WRONG: feedback attribute on a content interaction element -->
 <div class="card" onclick="toggleExpand(this)"
@@ -114,91 +121,106 @@ The platform injects a Bridge Script that automatically captures user interactio
   <select name="decision">...</select>
   <button type="submit">Submit Overall Decision</button>
 </form>
-```
 
-Correct pattern — content fully visible, per-item feedback buttons:
+<!-- WRONG: generic options not tailored to the content -->
+<button data-vd-feedback-action="approve" ...>Approve</button>
+<button data-vd-feedback-action="reject" ...>Reject</button>
 
-```html
-<!-- CORRECT: all content visible, feedback button clearly separated -->
-<div class="card">
-  <h3>Issue #1: Missing null check</h3>
-  <p>File: auth.js:42 — Details fully visible here...</p>
-  <div style="display:flex; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0">
-    <button data-vd-feedback-action="accept_fix"
-            data-vd-feedback-label="Accept fix for Issue #1"
-            data-vd-feedback-item-id="issue-1">
-      Accept Fix
-    </button>
-    <button data-vd-feedback-action="skip"
-            data-vd-feedback-label="Skip Issue #1"
-            data-vd-feedback-item-id="issue-1">
-      Skip
-    </button>
-  </div>
-</div>
-```
+<!-- WRONG: textarea/text-input alongside options (platform injects "Other..." automatically) -->
+<button data-vd-feedback-action="accept" ...>Accept</button>
+<textarea placeholder="Add comments..."></textarea>
 
-### Button feedback
-
-```html
-<button data-vd-feedback-action="approve"
-        data-vd-feedback-label="Approve proposal"
-        data-vd-feedback-item-id="proposal-1">
-  Approve
-</button>
-```
-
-When clicked, the Bridge sends to the feedback sidebar:
-```json
-{
-  "kind": "interactive",
-  "payload": { "action": "approve", "item-id": "proposal-1" },
-  "target": { "target_type": "interactive_element", "anchor": "Approve proposal" }
-}
-```
-
-### Form feedback
-
-```html
-<form data-vd-feedback-action="review_decision"
-      data-vd-feedback-label="Review item 3">
-  <select name="decision">
-    <option value="confirm">Confirm</option>
-    <option value="reject">Reject</option>
-    <option value="change_request">Request changes</option>
-  </select>
+<!-- WRONG: form with select+textarea (not the survey model) -->
+<form data-vd-feedback-action="review_decision">
+  <select name="decision">...</select>
   <textarea name="notes" placeholder="Notes..."></textarea>
   <button type="submit">Submit</button>
 </form>
 ```
 
-On submit, Bridge collects all form field values and sends:
+### Correct pattern — survey-style per-item choices
+
+Each item card shows all content visually, then presents contextually specific choice buttons:
+
+```html
+<!-- Code review item: options specific to code issues -->
+<div class="card">
+  <h3>Issue #1: Missing null check at auth.js:42</h3>
+  <p>The <code>user</code> object is accessed without a null guard,
+     which can throw TypeError when session expires.</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px solid var(--vds-colors-border,#e2e8f0)">
+    <button data-vd-feedback-action="accept_fix"
+            data-vd-feedback-label="Issue #1: Missing null check"
+            data-vd-feedback-item-id="issue-1">
+      Accept Fix
+    </button>
+    <button data-vd-feedback-action="defer"
+            data-vd-feedback-label="Issue #1: Missing null check"
+            data-vd-feedback-item-id="issue-1">
+      Defer
+    </button>
+    <button data-vd-feedback-action="wont_fix"
+            data-vd-feedback-label="Issue #1: Missing null check"
+            data-vd-feedback-item-id="issue-1">
+      Won't Fix
+    </button>
+    <!-- "Other..." is auto-injected by the platform — do NOT add it -->
+  </div>
+</div>
+
+<!-- Architecture proposal: options specific to design decisions -->
+<div class="card">
+  <h3>Proposal A: Migrate to PostgreSQL</h3>
+  <p>Replace SQLite with PostgreSQL for better concurrency...</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px solid var(--vds-colors-border,#e2e8f0)">
+    <button data-vd-feedback-action="adopt"
+            data-vd-feedback-label="Proposal A: Migrate to PostgreSQL"
+            data-vd-feedback-item-id="proposal-a">
+      Adopt
+    </button>
+    <button data-vd-feedback-action="need_poc"
+            data-vd-feedback-label="Proposal A: Migrate to PostgreSQL"
+            data-vd-feedback-item-id="proposal-a">
+      Need POC First
+    </button>
+    <button data-vd-feedback-action="alternative"
+            data-vd-feedback-label="Proposal A: Migrate to PostgreSQL"
+            data-vd-feedback-item-id="proposal-a">
+      Consider Alternative
+    </button>
+  </div>
+</div>
+```
+
+### How it works
+
+When a user clicks an option button, the Bridge sends to the feedback sidebar:
+
 ```json
 {
   "kind": "interactive",
-  "payload": {
-    "action": "review_decision",
-    "fields": { "decision": "confirm", "notes": "Looks good" }
-  },
-  "target": { "target_type": "interactive_form", "anchor": "Review item 3" }
+  "payload": { "action": "accept_fix", "item-id": "issue-1" },
+  "target": { "target_type": "interactive_element", "anchor": "Issue #1: Missing null check" }
 }
 ```
+
+The clicked button gets a visual "selected" state. If the user clicks a different option for the same item, the old choice is deselected and the new one takes its place (mutual exclusion).
 
 ### Attribute reference
 
 | Attribute | Required | Description |
 |-----------|----------|-------------|
-| `data-vd-feedback-action` | Yes | Action identifier (e.g. `approve`, `review_decision`, `rate`) |
-| `data-vd-feedback-label` | No | Human-readable label shown in sidebar |
-| `data-vd-feedback-*` | No | Any additional `data-vd-feedback-` attribute is included in payload |
+| `data-vd-feedback-action` | Yes | Action identifier — a content-specific verb (e.g. `accept_fix`, `defer`, `adopt`, `need_poc`) |
+| `data-vd-feedback-label` | No | Human-readable label shown in sidebar (should describe the item, not the action) |
+| `data-vd-feedback-item-id` | Yes* | Groups options for mutual exclusion. All buttons for the same item MUST share the same `item-id`. (*Required when multiple options exist per item) |
 
-### Important
+### Important rules
 
 - The agent does NOT write any `postMessage` code. The Bridge Script handles all communication.
 - Annotation feedback (text selection + comment) is fully automatic and global. No agent action needed.
-- Form elements inside a `[data-vd-feedback-action]` form use their `name` attribute as the field key.
-- Buttons with `data-vd-feedback-action` outside a form trigger on click.
-- Forms with `data-vd-feedback-action` trigger on submit and prevent default navigation.
+- Buttons with `data-vd-feedback-action` trigger on click. One click = feedback complete.
+- The platform auto-injects an **"Other..."** text-input option at the end of every button group. Agent MUST NOT generate its own "Other", "Comment", or free-text input alongside feedback buttons.
+- Do NOT use `<form>`, `<select>`, or `<textarea>` for feedback. Use only `<button>` elements with `data-vd-feedback-*` attributes. The survey model is buttons-only.
 
 ## File Links
 
@@ -229,64 +251,80 @@ The `/api/files/view` endpoint serves files within the project directory with co
 
 Every delivery page **MUST** include interactive feedback elements. A page without `data-vd-feedback-*` components is considered incomplete.
 
-### Choosing the right feedback pattern
+### Choosing the right options
 
-Only generate **per-item** feedback buttons. Do NOT generate global/overall feedback forms — the platform's FeedbackSidebar already provides free-text and overall feedback functionality.
+Only generate **per-item** choice options. Do NOT generate global/overall feedback forms — the platform's FeedbackSidebar already provides free-text and overall feedback functionality.
 
-| Content type | Recommended feedback pattern |
+Design options that are **specific to the content domain**:
+
+| Content type | Example contextual options |
 |---|---|
-| Review with multiple items (code review, document issues, audit) | Per-item approve/reject/skip buttons |
-| Proposal or plan | Per-section approve/request-changes buttons |
-| Data report or dashboard | Per-metric or per-insight flag/acknowledge buttons |
-| Comparison or options | Per-option select/prefer buttons |
+| Code review issues | Accept Fix / Defer / Won't Fix / Needs Refactor |
+| Architecture proposals | Adopt / Need POC First / Consider Alternative |
+| Design mockups | Looks Good / Adjust Layout / Rethink Approach |
+| Data quality findings | Confirmed / False Positive / Need More Data |
+| Dependency updates | Upgrade Now / Schedule Later / Pin Current Version |
+| Security vulnerabilities | Patch Immediately / Accept Risk / Mitigate Differently |
+| Test failures | Fix Required / Known Flaky / Environment Issue |
 
-### Per-item feedback (most common)
+### Per-item choices (most common)
 
-When the page presents a list of items that each need a decision, add a dedicated feedback button or form **inside** each item card, visually separated from the content:
+When the page presents a list of items that each need a decision, add choice buttons **inside** each item card, visually separated from the content:
 
 ```html
 <div class="item-card">
   <h3>Issue #1: Missing null check at auth.js:42</h3>
-  <p>Details about the issue...</p>
+  <p>The <code>user</code> object is accessed without a null guard...</p>
 
-  <!-- Feedback buttons — visually distinct, at the bottom of the card -->
-  <div style="display:flex; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--vds-colors-border,#e2e8f0)">
+  <!-- Choice options — visually distinct, at the bottom of the card -->
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px solid var(--vds-colors-border,#e2e8f0)">
     <button data-vd-feedback-action="accept_fix"
-            data-vd-feedback-label="Accept fix for Issue #1"
+            data-vd-feedback-label="Issue #1: Missing null check"
             data-vd-feedback-item-id="issue-1"
             style="padding:6px 16px; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600">
       Accept Fix
     </button>
-    <button data-vd-feedback-action="reject_fix"
-            data-vd-feedback-label="Skip Issue #1"
+    <button data-vd-feedback-action="defer"
+            data-vd-feedback-label="Issue #1: Missing null check"
             data-vd-feedback-item-id="issue-1"
             style="padding:6px 16px; background:var(--vds-colors-surface,#f1f5f9); color:var(--vds-colors-text,#1e293b); border:1px solid var(--vds-colors-border,#e2e8f0); border-radius:8px; cursor:pointer">
-      Skip
+      Defer
     </button>
+    <button data-vd-feedback-action="wont_fix"
+            data-vd-feedback-label="Issue #1: Missing null check"
+            data-vd-feedback-item-id="issue-1"
+            style="padding:6px 16px; background:var(--vds-colors-surface,#f1f5f9); color:var(--vds-colors-text,#1e293b); border:1px solid var(--vds-colors-border,#e2e8f0); border-radius:8px; cursor:pointer">
+      Won't Fix
+    </button>
+    <!-- "Other..." auto-injected by platform -->
   </div>
 </div>
 ```
 
 ## Common Patterns
 
-### Data table with row-level review
+### Data table with row-level choices
 
 ```html
 <table>
-  <thead><tr><th>Item</th><th>Status</th><th>Action</th></tr></thead>
+  <thead><tr><th>Item</th><th>Status</th><th>Decision</th></tr></thead>
   <tbody>
     <tr>
       <td>api/auth.js:42</td>
       <td>Missing null check</td>
-      <td>
-        <form data-vd-feedback-action="review_decision"
-              data-vd-feedback-label="auth.js:42">
-          <select name="decision">
-            <option value="confirm">Accept fix</option>
-            <option value="reject">Skip</option>
-          </select>
-          <button type="submit">Submit</button>
-        </form>
+      <td style="display:flex; gap:6px">
+        <button data-vd-feedback-action="accept_fix"
+                data-vd-feedback-label="auth.js:42"
+                data-vd-feedback-item-id="auth-42"
+                style="padding:4px 12px; border-radius:6px; border:1px solid var(--vds-colors-border,#e2e8f0); background:var(--vds-colors-surface,#f8fafc); cursor:pointer; font-size:13px">
+          Accept Fix
+        </button>
+        <button data-vd-feedback-action="defer"
+                data-vd-feedback-label="auth.js:42"
+                data-vd-feedback-item-id="auth-42"
+                style="padding:4px 12px; border-radius:6px; border:1px solid var(--vds-colors-border,#e2e8f0); background:var(--vds-colors-surface,#f8fafc); cursor:pointer; font-size:13px">
+          Defer
+        </button>
       </td>
     </tr>
   </tbody>
@@ -331,3 +369,6 @@ document.addEventListener('DOMContentLoaded', function() {
 7. **Using `localStorage`** — not available in sandboxed context.
 8. **Collapsible/expandable content** — never use `<details>`, accordions, or toggle-to-show patterns. All content must be visible by default.
 9. **Global feedback forms** — do not generate "overall decision" or "overall review" forms. The platform sidebar handles global feedback.
+10. **Redundant "Other" or free-text input** — do not generate "Other", "Comment", or text input alongside feedback buttons. The Bridge Script auto-injects an "Other..." option for every button group.
+11. **Generic options** — do not use generic "Approve / Reject" for every item. Options must be contextually specific to the actual content (e.g. "Accept Fix / Defer / Won't Fix" for code issues).
+12. **Using `<form>`, `<select>`, or `<textarea>` for feedback** — the feedback model is buttons-only. Each option is a single `<button>` click. Do not use form elements.
