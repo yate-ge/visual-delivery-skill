@@ -102,24 +102,26 @@ export function getBridgeScript(lang) {
   }
 
   function resetTextOption(el) {
-    var labelEl = el.querySelector('.vd-other-label');
     var inp = el.querySelector('input');
-    var btn = el.querySelector('button');
-    if (inp) inp.remove();
-    if (btn) btn.remove();
-    if (labelEl) {
-      labelEl.style.display = '';
+    if (inp) {
+      inp.value = '';
+      inp.disabled = false;
+      inp.style.opacity = '';
+      inp.style.borderColor = '#d1d5db';
     }
-    el._expanded = false;
-    el.style.gap = '';
+    var btn = el.querySelector('button');
+    if (btn) {
+      btn.disabled = false;
+      btn.style.opacity = '';
+    }
     el.style.pointerEvents = '';
   }
 
-  function collapseTextOption(itemId) {
+  function resetTextOptionForItem(itemId) {
     if (!itemId) return;
     var els = document.querySelectorAll('.vd-text-option[data-vd-feedback-item-id="' + itemId + '"]');
     for (var i = 0; i < els.length; i++) {
-      if (els[i]._expanded && !els[i].classList.contains('vd-selected')) {
+      if (!els[i].classList.contains('vd-selected')) {
         resetTextOption(els[i]);
       }
     }
@@ -135,10 +137,13 @@ export function getBridgeScript(lang) {
     '.vd-selected { border-color:var(--vds-colors-primary, #3b82f6) !important; background:rgba(59,130,246,.08) !important; color:var(--vds-colors-primary, #3b82f6) !important; pointer-events:none; }',
     '.vd-selected::after { content:"\\u2713"; margin-left:6px; font-size:13px; font-weight:700; color:var(--vds-colors-primary, #3b82f6); }',
     /* Text option (Other...) overrides */
-    '.vd-text-option.vd-selected { background:rgba(59,130,246,.08) !important; }',
+    '.vd-text-option { pointer-events:auto !important; }',
+    '.vd-text-option.vd-selected { background:rgba(59,130,246,.08) !important; pointer-events:none !important; }',
     '.vd-text-option.vd-selected::after { content:none !important; }',
-    '.vd-other-label { display:inline-block; padding:6px 16px; border:1px dashed var(--vds-colors-border, #9ca3af); border-radius:8px; font-size:13px; color:#6b7280; cursor:pointer; font-family:inherit; transition:all .15s; user-select:none; white-space:nowrap; }',
-    '.vd-other-label:hover { border-color:#6b7280; color:#374151; }',
+    '.vd-text-option input { width:140px; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; font-size:13px; font-family:inherit; outline:none; transition:border-color .15s; }',
+    '.vd-text-option input:focus { border-color:var(--vds-colors-primary, #3b82f6); }',
+    '.vd-text-option button { border:none; border-radius:6px; padding:6px 12px; background:#6b7280; color:#fff; font-size:13px; cursor:pointer; font-family:inherit; white-space:nowrap; transition:background .15s; }',
+    '.vd-text-option button:hover:not(:disabled) { background:#4b5563; }',
   ].join('\\n');
   document.head.appendChild(styleEl);
 
@@ -254,7 +259,7 @@ export function getBridgeScript(lang) {
     var data = collectFeedbackData(el);
     var action = data.action || 'click';
     var itemId = data['item-id'] || null;
-    collapseTextOption(itemId);
+    resetTextOptionForItem(itemId);
     var label = el.getAttribute('data-vd-feedback-label') || el.textContent.trim().slice(0, 80) || action;
 
     // Try to select (handles mutual exclusion)
@@ -286,7 +291,7 @@ export function getBridgeScript(lang) {
     var data = collectFeedbackData(form);
     var action = data.action || 'form_submit';
     var itemId = data['item-id'] || null;
-    collapseTextOption(itemId);
+    resetTextOptionForItem(itemId);
     delete data.action;
 
     // Collect form field values
@@ -386,18 +391,23 @@ export function getBridgeScript(lang) {
 
       var lastBtn = btns[btns.length - 1];
 
-      // Create "Other" option — inline like a survey's "Other..." choice
+      // Create "Other..." option — always-visible inline text input
       var wrapper = document.createElement('div');
       wrapper.className = 'vd-text-option';
       wrapper.setAttribute('data-vd-feedback-action', 'comment');
       wrapper.setAttribute('data-vd-feedback-item-id', groupId);
-      wrapper.style.cssText = 'display:inline-flex;align-items:center;position:relative;';
+      wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:6px;';
 
-      var otherLabel = document.createElement('span');
-      otherLabel.className = 'vd-other-label';
-      otherLabel.textContent = I18N.otherOption;
+      var inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = I18N.otherOption;
 
-      wrapper.appendChild(otherLabel);
+      var submitBtn = document.createElement('button');
+      submitBtn.type = 'button';
+      submitBtn.textContent = I18N.textFeedbackSubmit;
+
+      wrapper.appendChild(inp);
+      wrapper.appendChild(submitBtn);
 
       // Insert after the last button in the container
       if (lastBtn.nextSibling) {
@@ -406,84 +416,40 @@ export function getBridgeScript(lang) {
         lastBtn.parentNode.appendChild(wrapper);
       }
 
-      // Bind: click label to expand into text input
-      (function(itemId, wrapperEl, labelEl, label) {
-        labelEl.addEventListener('click', function(e) {
-          e.stopPropagation();
-          if (wrapperEl._expanded) return;
-          wrapperEl._expanded = true;
+      // Bind submit
+      (function(itemId, wrapperEl, inputEl, btnEl, label) {
+        function doSubmit() {
+          var text = inputEl.value.trim();
+          if (!text) { inputEl.focus(); return; }
 
-          labelEl.style.display = 'none';
-          wrapperEl.style.gap = '6px';
+          if (!markSelected(wrapperEl, 'comment', itemId)) return;
 
-          var inp = document.createElement('input');
-          inp.type = 'text';
-          inp.placeholder = I18N.textFeedbackPlaceholder;
-          inp.style.cssText = [
-            'width:160px', 'border:1px solid #d1d5db', 'border-radius:6px',
-            'padding:6px 10px', 'font-size:13px', 'font-family:inherit', 'outline:none',
-            'transition:border-color .15s',
-          ].join(';');
+          inputEl.disabled = true;
+          inputEl.style.opacity = '0.6';
+          btnEl.disabled = true;
+          btnEl.style.opacity = '0.6';
 
-          var submitBtn = document.createElement('button');
-          submitBtn.type = 'button';
-          submitBtn.textContent = I18N.textFeedbackSubmit;
-          submitBtn.style.cssText = [
-            'border:none', 'border-radius:6px', 'padding:6px 12px',
-            'background:#6b7280', 'color:#fff', 'font-size:13px',
-            'cursor:pointer', 'font-family:inherit', 'white-space:nowrap',
-            'transition:background .15s',
-          ].join(';');
-
-          wrapperEl.appendChild(inp);
-          wrapperEl.appendChild(submitBtn);
-          inp.focus();
-
-          function doSubmit() {
-            var text = inp.value.trim();
-            if (!text) { inp.focus(); return; }
-
-            if (!markSelected(wrapperEl, 'comment', itemId)) return;
-
-            inp.disabled = true;
-            inp.style.opacity = '0.6';
-            submitBtn.disabled = true;
-            submitBtn.style.opacity = '0.6';
-
-            window.parent.postMessage({
-              type: 'vd:interactive',
-              payload: {
-                kind: 'interactive',
-                payload: { action: 'comment', 'item-id': itemId, text: text },
-                target: {
-                  target_type: 'interactive_element',
-                  anchor: label ? label + ' | ' + text.slice(0, 60) : text.slice(0, 80),
-                },
+          window.parent.postMessage({
+            type: 'vd:interactive',
+            payload: {
+              kind: 'interactive',
+              payload: { action: 'comment', 'item-id': itemId, text: text },
+              target: {
+                target_type: 'interactive_element',
+                anchor: label ? label + ' | ' + text.slice(0, 60) : text.slice(0, 80),
               },
-            }, ORIGIN);
-          }
+            },
+          }, ORIGIN);
+        }
 
-          submitBtn.addEventListener('click', function(ev) {
-            ev.stopPropagation();
-            doSubmit();
-          });
-          inp.addEventListener('keydown', function(ev) {
-            if (ev.key === 'Enter') { ev.preventDefault(); doSubmit(); }
-          });
-          inp.addEventListener('focus', function() {
-            inp.style.borderColor = 'var(--vds-colors-primary, #3b82f6)';
-          });
-          inp.addEventListener('blur', function() {
-            inp.style.borderColor = '#d1d5db';
-          });
-          submitBtn.addEventListener('mouseenter', function() {
-            if (!submitBtn.disabled) submitBtn.style.background = '#4b5563';
-          });
-          submitBtn.addEventListener('mouseleave', function() {
-            if (!submitBtn.disabled) submitBtn.style.background = '#6b7280';
-          });
+        btnEl.addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          doSubmit();
         });
-      })(groupId, wrapper, otherLabel, contextLabel);
+        inputEl.addEventListener('keydown', function(ev) {
+          if (ev.key === 'Enter') { ev.preventDefault(); doSubmit(); }
+        });
+      })(groupId, wrapper, inp, submitBtn, contextLabel);
     }
   }
 
@@ -563,15 +529,11 @@ export function getBridgeScript(lang) {
       var allSelected = document.querySelectorAll('.vd-selected');
       for (var j = 0; j < allSelected.length; j++) {
         allSelected[j].classList.remove('vd-selected');
-        if (allSelected[j].classList.contains('vd-text-option')) {
-          resetTextOption(allSelected[j]);
-        }
       }
+      // Reset all text option inputs
       var allTextOpts = document.querySelectorAll('.vd-text-option');
       for (var k = 0; k < allTextOpts.length; k++) {
-        if (allTextOpts[k]._expanded) {
-          resetTextOption(allTextOpts[k]);
-        }
+        resetTextOption(allTextOpts[k]);
       }
     }
   });
