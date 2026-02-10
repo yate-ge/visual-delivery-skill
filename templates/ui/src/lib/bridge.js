@@ -5,8 +5,7 @@
  * Provides:
  *   1. Annotation feedback  – global text-selection → postMessage to parent
  *   2. Interactive feedback  – data-vd-feedback-* elements → postMessage
- *      - Auto-injected "Other..." option: each item-id group gets an inline
- *        text input option (like a survey "Other" choice), click to expand
+ *      - Button clicks (predefined options) and form submissions ("Other..." text)
  *      - Mutual exclusion: same item-id allows only one action at a time
  *   3. Height sync           – ResizeObserver → postMessage
  *   4. Token update listener – parent sends updated CSS vars
@@ -30,9 +29,6 @@ export function getBridgeScript(lang) {
     notePlaceholder: isZh ? '为选中内容添加反馈...' : 'Add feedback for this selection...',
     addToSidebar: isZh ? '加入侧边栏' : 'Add to sidebar',
     close: isZh ? '关闭' : 'Close',
-    textFeedbackPlaceholder: isZh ? '输入自定义反馈...' : 'Type custom feedback...',
-    textFeedbackSubmit: isZh ? '提交' : 'Submit',
-    otherOption: isZh ? '其他...' : 'Other...',
   };
 
   return `
@@ -65,9 +61,6 @@ export function getBridgeScript(lang) {
     var els = document.querySelectorAll(selector);
     for (var i = 0; i < els.length; i++) {
       els[i].classList.remove('vd-selected');
-      if (els[i].classList.contains('vd-text-option')) {
-        resetTextOption(els[i]);
-      }
     }
   }
 
@@ -101,32 +94,6 @@ export function getBridgeScript(lang) {
     }
   }
 
-  function resetTextOption(el) {
-    var inp = el.querySelector('input');
-    if (inp) {
-      inp.value = '';
-      inp.disabled = false;
-      inp.style.opacity = '';
-      inp.style.borderColor = '#d1d5db';
-    }
-    var btn = el.querySelector('button');
-    if (btn) {
-      btn.disabled = false;
-      btn.style.opacity = '';
-    }
-    el.style.pointerEvents = '';
-  }
-
-  function resetTextOptionForItem(itemId) {
-    if (!itemId) return;
-    var els = document.querySelectorAll('.vd-text-option[data-vd-feedback-item-id="' + itemId + '"]');
-    for (var i = 0; i < els.length; i++) {
-      if (!els[i].classList.contains('vd-selected')) {
-        resetTextOption(els[i]);
-      }
-    }
-  }
-
   /* Inject feedback option CSS */
   var styleEl = document.createElement('style');
   styleEl.textContent = [
@@ -136,14 +103,9 @@ export function getBridgeScript(lang) {
     /* Selected state: primary border + checkmark badge, still readable */
     '.vd-selected { border-color:var(--vds-colors-primary, #3b82f6) !important; background:rgba(59,130,246,.08) !important; color:var(--vds-colors-primary, #3b82f6) !important; pointer-events:none; }',
     '.vd-selected::after { content:"\\u2713"; margin-left:6px; font-size:13px; font-weight:700; color:var(--vds-colors-primary, #3b82f6); }',
-    /* Text option (Other...) overrides */
-    '.vd-text-option { pointer-events:auto !important; }',
-    '.vd-text-option.vd-selected { background:rgba(59,130,246,.08) !important; pointer-events:none !important; }',
-    '.vd-text-option.vd-selected::after { content:none !important; }',
-    '.vd-text-option input { width:140px; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; font-size:13px; font-family:inherit; outline:none; transition:border-color .15s; }',
-    '.vd-text-option input:focus { border-color:var(--vds-colors-primary, #3b82f6); }',
-    '.vd-text-option button { border:none; border-radius:6px; padding:6px 12px; background:#6b7280; color:#fff; font-size:13px; cursor:pointer; font-family:inherit; white-space:nowrap; transition:background .15s; }',
-    '.vd-text-option button:hover:not(:disabled) { background:#4b5563; }',
+    /* Form-based feedback (agent-generated "Other..." text input) */
+    'form[data-vd-feedback-action].vd-selected { opacity:.7; pointer-events:none; }',
+    'form[data-vd-feedback-action].vd-selected::after { content:"\\u2713"; margin-left:6px; font-size:13px; font-weight:700; color:var(--vds-colors-primary, #3b82f6); }',
   ].join('\\n');
   document.head.appendChild(styleEl);
 
@@ -229,7 +191,7 @@ export function getBridgeScript(lang) {
 
   /* ------------------------------------------------------------------ */
   /*  2. Interactive feedback: data-vd-feedback-* elements               */
-  /*     Buttons = direct selection, plus auto-injected text input       */
+  /*     Buttons = direct selection; forms = "Other..." text input       */
   /* ------------------------------------------------------------------ */
 
   function collectFeedbackData(el) {
@@ -250,8 +212,6 @@ export function getBridgeScript(lang) {
   function handleFeedbackClick(e) {
     var el = e.target.closest('[data-vd-feedback-action]');
     if (!el || el.tagName === 'FORM') return;
-    // Skip text option wrappers — they have their own submit handler
-    if (el.classList.contains('vd-text-option')) return;
     // Skip if inside a form with feedback action (form handles submit)
     var closestForm = el.closest('form[data-vd-feedback-action]');
     if (closestForm && closestForm !== el) return;
@@ -259,7 +219,7 @@ export function getBridgeScript(lang) {
     var data = collectFeedbackData(el);
     var action = data.action || 'click';
     var itemId = data['item-id'] || null;
-    resetTextOptionForItem(itemId);
+
     var label = el.getAttribute('data-vd-feedback-label') || el.textContent.trim().slice(0, 80) || action;
 
     // Try to select (handles mutual exclusion)
@@ -291,7 +251,7 @@ export function getBridgeScript(lang) {
     var data = collectFeedbackData(form);
     var action = data.action || 'form_submit';
     var itemId = data['item-id'] || null;
-    resetTextOptionForItem(itemId);
+
     delete data.action;
 
     // Collect form field values
@@ -335,132 +295,6 @@ export function getBridgeScript(lang) {
 
   document.addEventListener('click', handleFeedbackClick);
   document.addEventListener('submit', handleFeedbackSubmit);
-
-  /* ------------------------------------------------------------------ */
-  /*  2b. Auto-inject text input option for each button group            */
-  /*      Groups buttons by parent container; auto-assigns item-id       */
-  /* ------------------------------------------------------------------ */
-
-  function injectTextInputOptions() {
-    var allBtns = document.querySelectorAll('[data-vd-feedback-action]');
-    var containerList = [];
-    var seenContainers = [];
-
-    // Group buttons by their parent element
-    for (var i = 0; i < allBtns.length; i++) {
-      var btn = allBtns[i];
-      if (btn.classList.contains('vd-text-option')) continue;
-      var parent = btn.parentElement;
-      if (!parent) continue;
-
-      var idx = seenContainers.indexOf(parent);
-      if (idx === -1) {
-        seenContainers.push(parent);
-        containerList.push([btn]);
-      } else {
-        containerList[idx].push(btn);
-      }
-    }
-
-    for (var g = 0; g < containerList.length; g++) {
-      var container = seenContainers[g];
-      var btns = containerList[g];
-
-      // Skip if already has a text input
-      if (container.querySelector('.vd-text-option')) continue;
-
-      // Derive a group-id: use existing item-id or extract from action name
-      var firstBtn = btns[0];
-      var groupId = firstBtn.getAttribute('data-vd-feedback-item-id');
-      if (!groupId) {
-        var action = firstBtn.getAttribute('data-vd-feedback-action') || '';
-        // Strip common prefixes: "accept_grammar_1" -> "grammar_1"
-        groupId = action.replace(/^(accept|skip|reject|mark)_/, '');
-        if (!groupId) groupId = 'item_' + g;
-      }
-
-      // Auto-assign item-id to buttons that lack it (enables mutual exclusion)
-      for (var b = 0; b < btns.length; b++) {
-        if (!btns[b].getAttribute('data-vd-feedback-item-id')) {
-          btns[b].setAttribute('data-vd-feedback-item-id', groupId);
-        }
-      }
-
-      // Get context label from the first button
-      var contextLabel = firstBtn.getAttribute('data-vd-feedback-label') || '';
-
-      var lastBtn = btns[btns.length - 1];
-
-      // Create "Other..." option — always-visible inline text input
-      var wrapper = document.createElement('div');
-      wrapper.className = 'vd-text-option';
-      wrapper.setAttribute('data-vd-feedback-action', 'comment');
-      wrapper.setAttribute('data-vd-feedback-item-id', groupId);
-      wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:6px;';
-
-      var inp = document.createElement('input');
-      inp.type = 'text';
-      inp.placeholder = I18N.otherOption;
-
-      var submitBtn = document.createElement('button');
-      submitBtn.type = 'button';
-      submitBtn.textContent = I18N.textFeedbackSubmit;
-
-      wrapper.appendChild(inp);
-      wrapper.appendChild(submitBtn);
-
-      // Insert after the last button in the container
-      if (lastBtn.nextSibling) {
-        lastBtn.parentNode.insertBefore(wrapper, lastBtn.nextSibling);
-      } else {
-        lastBtn.parentNode.appendChild(wrapper);
-      }
-
-      // Bind submit
-      (function(itemId, wrapperEl, inputEl, btnEl, label) {
-        function doSubmit() {
-          var text = inputEl.value.trim();
-          if (!text) { inputEl.focus(); return; }
-
-          if (!markSelected(wrapperEl, 'comment', itemId)) return;
-
-          inputEl.disabled = true;
-          inputEl.style.opacity = '0.6';
-          btnEl.disabled = true;
-          btnEl.style.opacity = '0.6';
-
-          window.parent.postMessage({
-            type: 'vd:interactive',
-            payload: {
-              kind: 'interactive',
-              payload: { action: 'comment', 'item-id': itemId, text: text },
-              target: {
-                target_type: 'interactive_element',
-                anchor: label ? label + ' | ' + text.slice(0, 60) : text.slice(0, 80),
-              },
-            },
-          }, ORIGIN);
-        }
-
-        btnEl.addEventListener('click', function(ev) {
-          ev.stopPropagation();
-          doSubmit();
-        });
-        inputEl.addEventListener('keydown', function(ev) {
-          if (ev.key === 'Enter') { ev.preventDefault(); doSubmit(); }
-        });
-      })(groupId, wrapper, inp, submitBtn, contextLabel);
-    }
-  }
-
-  // Run injection after DOM is ready and after a delay for dynamic content
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectTextInputOptions);
-  } else {
-    injectTextInputOptions();
-  }
-  setTimeout(injectTextInputOptions, 500);
-  setTimeout(injectTextInputOptions, 2000);
 
   /* ------------------------------------------------------------------ */
   /*  3. Height sync via ResizeObserver                                  */
@@ -529,11 +363,6 @@ export function getBridgeScript(lang) {
       var allSelected = document.querySelectorAll('.vd-selected');
       for (var j = 0; j < allSelected.length; j++) {
         allSelected[j].classList.remove('vd-selected');
-      }
-      // Reset all text option inputs
-      var allTextOpts = document.querySelectorAll('.vd-text-option');
-      for (var k = 0; k < allTextOpts.length; k++) {
-        resetTextOption(allTextOpts[k]);
       }
     }
   });

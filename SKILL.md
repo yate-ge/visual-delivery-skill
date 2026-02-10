@@ -121,7 +121,7 @@ Pipeline:
 1. **Requirement Analysis**: define goals, audience, key decision points.
 2. **Design Planning**: choose layout, visual style, interaction strategy. Read design tokens from `GET /api/design-tokens` and use `var(--vds-*)` CSS variables.
 3. **HTML Generation**: produce a full `<!DOCTYPE html>` page with inline CSS and JS. See [references/generative-ui-guide.md](references/generative-ui-guide.md) for rules.
-4. **Feedback Hooks (REQUIRED)**: every reviewable item MUST have per-item choice options using `data-vd-feedback-*` button attributes. Options must be **contextually specific** to the content (not generic approve/reject). The platform auto-injects an "Other..." text-input option — do NOT generate your own. See [references/generative-ui-guide.md](references/generative-ui-guide.md) for the survey model and patterns. Annotation feedback (text selection) is automatic — no agent action needed.
+4. **Feedback Hooks (REQUIRED)**: every reviewable item MUST have per-item choice options using `data-vd-feedback-*` button attributes. Options must be **contextually specific** to the content (not generic approve/reject). Each item group MUST also include an always-visible "Other..." text input form for free-text feedback. See [references/generative-ui-guide.md](references/generative-ui-guide.md) for the survey model and patterns. Annotation feedback (text selection) is automatic — no agent action needed.
 5. **Self-check**: before publishing, verify the HTML contains at least one element with `data-vd-feedback-action`. If none exists, go back to step 4.
 6. **Publish**: POST to `/api/deliveries`.
 
@@ -136,9 +136,10 @@ Core principles:
 - **Responsive**: support desktop and mobile viewports.
 - **No placeholders**: every element must be functional with real data.
 - **No hidden content**: all content and feedback buttons must be fully visible by default. NEVER use `<details>`/`<summary>`, accordions, collapsible panels, or click-to-expand patterns.
-- **Mandatory per-item feedback (survey model)**: every reviewable item MUST have `data-vd-feedback-*` choice buttons. Options must be **contextually specific** — tailored to the actual content, not generic. Do NOT generate global/overall feedback forms — the platform sidebar handles that.
-- **Feedback = buttons only**: use only `<button>` elements with `data-vd-feedback-*`. Do NOT use `<form>`, `<select>`, or `<textarea>` for feedback. Each button click = one complete feedback action.
-- **Mutual exclusion**: all buttons for the same item share the same `data-vd-feedback-item-id`. Clicking a new option auto-deselects the previous one.
+- **Mandatory per-item feedback (survey model)**: every reviewable item MUST have `data-vd-feedback-*` choice buttons plus an always-visible "Other..." text input form. Options must be **contextually specific** — tailored to the actual content, not generic. Do NOT generate global/overall feedback forms — the platform sidebar handles that.
+- **Predefined options = buttons**: use `<button>` elements with `data-vd-feedback-*` for predefined choices. Each button click = one complete feedback action.
+- **"Other..." option = inline form**: each item group MUST include a `<form data-vd-feedback-action="other_comment">` with a text input and submit button. The form must be always visible (not hidden behind a click). Use the same `data-vd-feedback-item-id` as the predefined buttons.
+- **Mutual exclusion**: all buttons and the "Other..." form for the same item share the same `data-vd-feedback-item-id`. Selecting a predefined option deselects any previous choice; submitting "Other..." text replaces any selected predefined option.
 
 Per-item feedback example (survey-style choices):
 
@@ -160,7 +161,18 @@ Per-item feedback example (survey-style choices):
           data-vd-feedback-item-id="issue-1">
     Won't Fix
   </button>
-  <!-- "Other..." is auto-injected by the platform — do NOT add it -->
+  <!-- Always-visible "Other..." text input -->
+  <form data-vd-feedback-action="other_comment"
+        data-vd-feedback-label="Issue #1: Missing null check"
+        data-vd-feedback-item-id="issue-1"
+        style="display:inline-flex; gap:6px; align-items:center; margin:0">
+    <input type="text" name="text" placeholder="Other..."
+           style="width:140px; padding:6px 10px; border:1px solid var(--vds-colors-border,#e2e8f0); border-radius:8px; font-size:13px; font-family:inherit">
+    <button type="submit"
+            style="padding:6px 12px; border:none; border-radius:8px; background:#6b7280; color:#fff; font-size:13px; cursor:pointer">
+      Submit
+    </button>
+  </form>
 </div>
 ```
 

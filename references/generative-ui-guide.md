@@ -42,7 +42,7 @@ Every generated page must be a full HTML document:
 3. **No placeholders**: every element must be functional with real data. Remove any element that cannot be fully realized.
 4. **Self-contained**: one HTML string with inline `<style>` and `<script>`. No external files except CDN libraries.
 5. **Responsive**: must look good on both desktop (1200px+) and narrow viewports (400px).
-6. **Mandatory per-item feedback**: every delivery page MUST include per-item choice options (`data-vd-feedback-*` buttons) for each reviewable item. A page without feedback components is incomplete. Do NOT generate global/overall feedback — the platform sidebar handles that. Options must be contextually specific to the content. See [Per-Item Feedback (Survey Model)](#per-item-feedback-survey-model) and [Feedback Requirements](#feedback-requirements).
+6. **Mandatory per-item feedback**: every delivery page MUST include per-item choice buttons (`data-vd-feedback-*`) AND an always-visible "Other..." text input form for each reviewable item. A page without feedback components is incomplete. Do NOT generate global/overall feedback — the platform sidebar handles that. Options must be contextually specific to the content. See [Per-Item Feedback (Survey Model)](#per-item-feedback-survey-model) and [Feedback Requirements](#feedback-requirements).
 7. **No hidden content**: all content and feedback buttons must be fully visible by default. NEVER use `<details>`/`<summary>`, accordions, collapsible panels, or any pattern that hides content behind a click. Users must see all information and feedback controls without extra interaction steps.
 
 ## Design Tokens
@@ -79,19 +79,18 @@ Other well-known CDN libraries are allowed if needed.
 
 ## Per-Item Feedback (Survey Model)
 
-The feedback system follows a **survey/questionnaire** model. Each item that needs user input is treated as a survey question with multiple-choice options. The user picks one option and the feedback is complete — no additional text input required.
+The feedback system follows a **survey/questionnaire** model. Each item that needs user input is treated as a survey question with multiple-choice options plus an always-visible "Other..." text input for free-text feedback.
 
-The platform injects a Bridge Script that automatically captures clicks on elements marked with `data-vd-feedback-*` attributes.
+The platform injects a Bridge Script that automatically captures clicks on `data-vd-feedback-*` buttons and form submissions.
 
 ### Core concept
 
 Think of every reviewable item as a **survey question**:
 
 - The **item content** (code issue, proposal section, metric) is the question context.
-- The **choice options** are `<button>` elements with `data-vd-feedback-action`. Each represents one distinct answer.
-- Options are **mutually exclusive** per item (same `data-vd-feedback-item-id`). Selecting a new option automatically deselects the previous one.
-- Clicking a predefined option is the **complete feedback action**. No text input needed.
-- The platform auto-injects an **"Other..."** option at the end of every option group. Only this option requires text input. Agent MUST NOT generate its own "Other" or free-text input.
+- The **predefined choices** are `<button>` elements with `data-vd-feedback-action`. Each represents one distinct answer. Clicking a button = complete feedback.
+- The **"Other..." option** is a `<form data-vd-feedback-action="other_comment">` with a text input. It is always visible alongside the predefined buttons — NOT hidden behind a click.
+- All options (buttons + "Other..." form) share the same `data-vd-feedback-item-id` for **mutual exclusion**. Selecting a predefined button deselects any previous choice; submitting "Other..." text replaces any selected button.
 
 ### Design principles
 
@@ -126,7 +125,7 @@ Think of every reviewable item as a **survey question**:
 <button data-vd-feedback-action="approve" ...>Approve</button>
 <button data-vd-feedback-action="reject" ...>Reject</button>
 
-<!-- WRONG: textarea/text-input alongside options (platform injects "Other..." automatically) -->
+<!-- WRONG: standalone textarea outside the "Other..." form pattern -->
 <button data-vd-feedback-action="accept" ...>Accept</button>
 <textarea placeholder="Add comments..."></textarea>
 
@@ -134,6 +133,13 @@ Think of every reviewable item as a **survey question**:
 <form data-vd-feedback-action="review_decision">
   <select name="decision">...</select>
   <textarea name="notes" placeholder="Notes..."></textarea>
+  <button type="submit">Submit</button>
+</form>
+
+<!-- WRONG: hidden "Other..." that requires click to expand -->
+<button onclick="this.nextElementSibling.style.display='block'">Other...</button>
+<form style="display:none" data-vd-feedback-action="other_comment" ...>
+  <input type="text" name="text">
   <button type="submit">Submit</button>
 </form>
 ```
@@ -164,7 +170,18 @@ Each item card shows all content visually, then presents contextually specific c
             data-vd-feedback-item-id="issue-1">
       Won't Fix
     </button>
-    <!-- "Other..." is auto-injected by the platform — do NOT add it -->
+    <!-- Always-visible "Other..." text input -->
+    <form data-vd-feedback-action="other_comment"
+          data-vd-feedback-label="Issue #1: Missing null check"
+          data-vd-feedback-item-id="issue-1"
+          style="display:inline-flex; gap:6px; align-items:center; margin:0">
+      <input type="text" name="text" placeholder="Other..."
+             style="width:140px; padding:6px 10px; border:1px solid var(--vds-colors-border,#e2e8f0); border-radius:8px; font-size:13px; font-family:inherit">
+      <button type="submit"
+              style="padding:6px 12px; border:none; border-radius:8px; background:#6b7280; color:#fff; font-size:13px; cursor:pointer">
+        Submit
+      </button>
+    </form>
   </div>
 </div>
 
@@ -188,6 +205,17 @@ Each item card shows all content visually, then presents contextually specific c
             data-vd-feedback-item-id="proposal-a">
       Consider Alternative
     </button>
+    <form data-vd-feedback-action="other_comment"
+          data-vd-feedback-label="Proposal A: Migrate to PostgreSQL"
+          data-vd-feedback-item-id="proposal-a"
+          style="display:inline-flex; gap:6px; align-items:center; margin:0">
+      <input type="text" name="text" placeholder="Other..."
+             style="width:140px; padding:6px 10px; border:1px solid var(--vds-colors-border,#e2e8f0); border-radius:8px; font-size:13px; font-family:inherit">
+      <button type="submit"
+              style="padding:6px 12px; border:none; border-radius:8px; background:#6b7280; color:#fff; font-size:13px; cursor:pointer">
+        Submit
+      </button>
+    </form>
   </div>
 </div>
 ```
@@ -218,9 +246,10 @@ The clicked button gets a visual "selected" state. If the user clicks a differen
 
 - The agent does NOT write any `postMessage` code. The Bridge Script handles all communication.
 - Annotation feedback (text selection + comment) is fully automatic and global. No agent action needed.
-- Buttons with `data-vd-feedback-action` trigger on click. One click = feedback complete.
-- The platform auto-injects an **"Other..."** text-input option at the end of every button group. Agent MUST NOT generate its own "Other", "Comment", or free-text input alongside feedback buttons.
-- Do NOT use `<form>`, `<select>`, or `<textarea>` for feedback. Use only `<button>` elements with `data-vd-feedback-*` attributes. The survey model is buttons-only.
+- Predefined options: `<button data-vd-feedback-action="...">`. One click = feedback complete.
+- "Other..." option: `<form data-vd-feedback-action="other_comment">` with `<input type="text" name="text">` and a submit button. Must be **always visible** (never hidden). Uses the same `data-vd-feedback-item-id` as the predefined buttons for mutual exclusion.
+- Every item group MUST include both predefined choice buttons AND the "Other..." form.
+- Do NOT use `<select>` or standalone `<textarea>` for feedback. The only allowed form is the "Other..." pattern shown above.
 
 ## File Links
 
@@ -296,7 +325,18 @@ When the page presents a list of items that each need a decision, add choice but
             style="padding:6px 16px; background:var(--vds-colors-surface,#f1f5f9); color:var(--vds-colors-text,#1e293b); border:1px solid var(--vds-colors-border,#e2e8f0); border-radius:8px; cursor:pointer">
       Won't Fix
     </button>
-    <!-- "Other..." auto-injected by platform -->
+    <!-- Always-visible "Other..." text input -->
+    <form data-vd-feedback-action="other_comment"
+          data-vd-feedback-label="Issue #1: Missing null check"
+          data-vd-feedback-item-id="issue-1"
+          style="display:inline-flex; gap:6px; align-items:center; margin:0">
+      <input type="text" name="text" placeholder="Other..."
+             style="width:140px; padding:6px 10px; border:1px solid var(--vds-colors-border,#e2e8f0); border-radius:8px; font-size:13px; font-family:inherit">
+      <button type="submit"
+              style="padding:6px 12px; border:none; border-radius:8px; background:#6b7280; color:#fff; font-size:13px; cursor:pointer">
+        Submit
+      </button>
+    </form>
   </div>
 </div>
 ```
@@ -369,6 +409,6 @@ document.addEventListener('DOMContentLoaded', function() {
 7. **Using `localStorage`** — not available in sandboxed context.
 8. **Collapsible/expandable content** — never use `<details>`, accordions, or toggle-to-show patterns. All content must be visible by default.
 9. **Global feedback forms** — do not generate "overall decision" or "overall review" forms. The platform sidebar handles global feedback.
-10. **Redundant "Other" or free-text input** — do not generate "Other", "Comment", or text input alongside feedback buttons. The Bridge Script auto-injects an "Other..." option for every button group.
+10. **Missing "Other..." text input** — every item group MUST include an always-visible `<form data-vd-feedback-action="other_comment">` with a text input. Do not hide it behind a click or omit it entirely.
 11. **Generic options** — do not use generic "Approve / Reject" for every item. Options must be contextually specific to the actual content (e.g. "Accept Fix / Defer / Won't Fix" for code issues).
-12. **Using `<form>`, `<select>`, or `<textarea>` for feedback** — the feedback model is buttons-only. Each option is a single `<button>` click. Do not use form elements.
+12. **Using `<select>` or standalone `<textarea>` for feedback** — the only allowed form element is the "Other..." inline form pattern. Do not use `<select>` dropdowns or standalone text areas.
