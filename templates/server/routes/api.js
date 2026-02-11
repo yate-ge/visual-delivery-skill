@@ -7,7 +7,8 @@ const { nowLocalISO, ensureLocalISO } = require('../lib/time');
 
 const DELIVERY_MODES = ['task_delivery'];
 const DELIVERY_STATUSES = ['normal', 'pending_feedback'];
-const SUPPORTED_LANGUAGES = ['zh', 'en'];
+// Preset languages have built-in locale files; any language string is accepted
+const PRESET_LANGUAGES = ['zh', 'en'];
 
 const DEFAULT_SETTINGS = {
   language: null,
@@ -297,7 +298,7 @@ function setupRoutes(app, dataDir) {
     if (!stored) return DEFAULT_SETTINGS;
 
     const languageExplicit = stored.language_explicit === true;
-    const language = languageExplicit && SUPPORTED_LANGUAGES.includes(stored.language)
+    const language = languageExplicit && typeof stored.language === 'string' && stored.language
       ? stored.language
       : DEFAULT_SETTINGS.language;
 
@@ -749,11 +750,11 @@ function setupRoutes(app, dataDir) {
       const input = req.body || {};
       const requestedLanguage = input.language;
       const hasLanguageInput = Object.prototype.hasOwnProperty.call(input, 'language');
-      const language = hasLanguageInput && SUPPORTED_LANGUAGES.includes(requestedLanguage)
+      const language = hasLanguageInput && typeof requestedLanguage === 'string' && requestedLanguage
         ? requestedLanguage
         : current.language;
       const languageExplicit = hasLanguageInput
-        ? SUPPORTED_LANGUAGES.includes(requestedLanguage)
+        ? (typeof requestedLanguage === 'string' && !!requestedLanguage)
         : current.language_explicit === true;
 
       const next = {

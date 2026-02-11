@@ -8,7 +8,8 @@ const PORT = 3847;           // Avoids conflict with 3000/5173/8080 common dev p
 const HEALTH_TIMEOUT = 15;   // Seconds to wait for server startup
 
 const SKILL_DIR = path.resolve(__dirname, '..');
-const SUPPORTED_LANGS = ['zh', 'en'];
+// Preset languages have built-in locale files; any other language is agent-generated
+const PRESET_LANGS = ['zh', 'en'];
 
 function log(msg) {
   process.stderr.write(`[visual-delivery] ${msg}\n`);
@@ -43,7 +44,8 @@ function normalizeLang(lang) {
   if (!v) return null;
   if (v.startsWith('zh')) return 'zh';
   if (v.startsWith('en')) return 'en';
-  return SUPPORTED_LANGS.includes(v) ? v : null;
+  // Accept any language code (agent generates locale for non-preset languages)
+  return v || null;
 }
 
 function detectEnvLang() {
