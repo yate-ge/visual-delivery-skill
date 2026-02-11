@@ -21,7 +21,13 @@
     └── ...其他设计文档
 ```
 
-运行时工作目录：`{CWD}/.visual-delivery/`（不在 skill 目录内）
+### 运行时目录（只读参考，不可修改）
+
+`{CWD}/.visual-delivery/` 是运行时由 `start.js` 从 `templates/` 复制并构建的产物，包含实际运行的 server、ui（含 dist）、design tokens 等。**这是 runtime 生成的内容，不是开发目标。**
+
+- 查看 `.visual-delivery/` 下的文件可以用来**评估运行效果**（如检查构建产物、调试运行时行为）
+- 但**所有开发和修改必须在 skill 目录本身**进行（即当前目录下的 `templates/`、`scripts/`、`SKILL.md`、`references/` 等）
+- 修改 `templates/` 后，需要重启服务（stop + start）才能让 `start.js` 重新同步模板到运行时目录并重新构建
 
 ## 技术栈
 - **Server**: Node.js 18+, Express, ws (WebSocket)
