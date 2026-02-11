@@ -15,12 +15,7 @@ export default function Settings() {
 
   useEffect(() => {
     fetchSettings()
-      .then((data) => {
-        setSettings({
-          ...data,
-          language: data.language || getLang(),
-        });
-      })
+      .then((data) => setSettings(data))
       .catch((err) => setMessage(t('errorLoadingSettings', { message: err.message })));
   }, []);
 
@@ -31,11 +26,6 @@ export default function Settings() {
     setMessage('');
     try {
       const result = await updateSettings(settings);
-      if (result.locale_changed) {
-        // Locale was regenerated server-side — reload to pick up new strings
-        window.location.reload();
-        return;
-      }
       setSettings(result);
       setMessage(t('settingsSaved'));
     } catch (err) {
@@ -55,14 +45,6 @@ export default function Settings() {
     }));
   }
 
-  function updateLanguage(value) {
-    setSettings((prev) => ({
-      ...(prev || {}),
-      language: value,
-      platform: prev?.platform || {},
-    }));
-  }
-
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -78,14 +60,7 @@ export default function Settings() {
           <div style={styles.form}>
             <label style={styles.label}>
               {t('language')}
-              <select
-                value={settings.language || 'en'}
-                onChange={(e) => updateLanguage(e.target.value)}
-                style={styles.input}
-              >
-                <option value="zh">{t('languageZh')}</option>
-                <option value="en">{t('languageEn')}</option>
-              </select>
+              <div style={styles.langDisplay}>{settings.language || getLang()}</div>
             </label>
 
             <label style={styles.label}>
@@ -212,6 +187,14 @@ const styles = {
     fontFamily: 'inherit',
     fontSize: '14px',
     outline: 'none',
+  },
+  langDisplay: {
+    padding: '8px 10px',
+    fontSize: '14px',
+    color: 'var(--vds-colors-text)',
+    background: 'var(--vds-colors-surface)',
+    border: '1px solid var(--vds-colors-border)',
+    borderRadius: '8px',
   },
   saveBtn: {
     gridColumn: '1 / -1',

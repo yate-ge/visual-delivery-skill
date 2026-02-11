@@ -51,17 +51,18 @@ Instead, go directly to Step 1: start the service, show the URL, and ask the rem
 
 #### Locale system
 
-UI strings are externalized into locale preset files (`templates/locales/en.json`, `templates/locales/zh.json`). At startup, `start.js` copies presets to `{DATA_DIR}/locales/` and generates `{DATA_DIR}/data/locale.json` from the matching preset (only if `locale.json` does not already exist).
+UI strings are stored in `{DATA_DIR}/data/locale.json`. The server injects this into every HTML response as `window.__VD_LOCALE__` — zero flash, immediate rendering in the correct language.
 
-The server injects the active locale into every HTML response synchronously via `<script>window.__VD_LOCALE__={...};window.__VD_LANG__="...";</script>` before `</head>`. This eliminates language flash on page load — the UI reads translations from `window.__VD_LOCALE__` immediately, with no async fetch.
-
-When language changes via `PUT /api/settings`, the server copies the matching preset to `locale.json` and returns `locale_changed: true`. The Settings page detects this and triggers a full page reload to pick up the new locale.
+Built-in presets exist for `zh` and `en` (`templates/locales/`). For ANY other language, the agent generates the locale at init time.
 
 ### Step 1: Ensure service is running
 
-Detect interaction language first:
-- Chinese user input -> `lang = zh`
-- otherwise -> `lang = en`
+Detect interaction language first — use the **actual language**, not just zh/en:
+- Chinese → `lang = zh`
+- English → `lang = en`
+- Japanese → `lang = ja`
+- Korean → `lang = ko`
+- Any other → use the appropriate language code
 
 Tell user startup message in matched language:
 - `zh`: "正在启动视觉交付服务..."
@@ -112,6 +113,22 @@ node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR} --remote
 ```
 
 If `remote_url` is returned, tell user the tunnel URL.
+
+#### Step 1b: Generate locale (if needed)
+
+`start.js` uses built-in presets for `zh` and `en`. For any other language, it falls back to English and the agent MUST generate the locale.
+
+Check if locale needs generation: read `{DATA_DIR}/data/locale.json` — if the strings are in the wrong language (e.g., English when user speaks Japanese), generate a new locale.
+
+To generate: read the reference template `{DATA_DIR}/locales/en.json` (contains all required keys). Translate every value to the user's language. Then write via API:
+
+```bash
+curl -s -X PUT http://localhost:3847/api/locale \
+  -H 'Content-Type: application/json' \
+  -d '{ "appTitle": "ビジュアルデリバリー", "settings": "設定", ... }'
+```
+
+After writing, tell user to refresh the browser (or the next page load will pick up the new locale automatically).
 
 ### Step 2: Generate delivery page (Generative UI)
 
@@ -300,14 +317,21 @@ POST /api/deliveries/:id/feedback/revoke
 GET /api/design-tokens
 ```
 
-- Read/update platform fields (`name`, `logo_url`, `slogan`, `visual_style`) and `language`:
+- Read/update platform fields (`name`, `logo_url`, `slogan`, `visual_style`):
 
 ```bash
 GET /api/settings
 PUT /api/settings
 ```
 
-When updating language via `PUT /api/settings`, the server swaps the active `locale.json` to the matching preset and returns `{ ..., locale_changed: true }`. The browser reloads automatically to apply the new locale. Supported languages: `zh`, `en`.
+- Language is set at initialization time (Step 1). The Settings page displays it as read-only. To change language, re-initialize the skill with the new language.
+
+- Update locale strings (agent-generated):
+
+```bash
+GET /api/locale
+PUT /api/locale
+```
 
 Tell user after update: "Settings updated. The UI refreshes in real time."
 

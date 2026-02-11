@@ -790,6 +790,44 @@ function setupRoutes(app, dataDir) {
     }
   });
 
+  // Get current locale
+  app.get('/api/locale', (req, res) => {
+    try {
+      const localePath = path.join(dataRoot, 'locale.json');
+      const locale = fs.existsSync(localePath)
+        ? JSON.parse(fs.readFileSync(localePath, 'utf8'))
+        : {};
+      res.json(locale);
+    } catch (err) {
+      console.error('Error reading locale:', err);
+      res.status(500).json({
+        error: { code: 'INTERNAL_ERROR', message: err.message },
+      });
+    }
+  });
+
+  // Update locale (agent writes translated UI strings)
+  app.put('/api/locale', async (req, res) => {
+    try {
+      const locale = req.body;
+      if (!locale || typeof locale !== 'object' || Array.isArray(locale)) {
+        return res.status(400).json({
+          error: { code: 'INVALID_REQUEST', message: 'Body must be a JSON object of locale strings' },
+        });
+      }
+
+      const localePath = path.join(dataRoot, 'locale.json');
+      await writeJSON(localePath, locale);
+
+      res.status(200).json({ status: 'ok', keys: Object.keys(locale).length });
+    } catch (err) {
+      console.error('Error updating locale:', err);
+      res.status(500).json({
+        error: { code: 'INTERNAL_ERROR', message: err.message },
+      });
+    }
+  });
+
   // Design tokens
   app.get('/api/design-tokens', (req, res) => {
     const tokensPath = path.join(dataDir, 'design', 'tokens.json');

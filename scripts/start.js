@@ -190,27 +190,44 @@ async function main() {
     fs.cpSync(localesSourceDir, localesDestDir, { recursive: true, force: true });
   }
 
-  // Generate locale.json from preset (only if missing — preserves user's language choice)
+  // Generate locale.json from preset when language changes or missing
   const localePath = path.join(dataDir, 'data', 'locale.json');
-  if (!fs.existsSync(localePath)) {
+  const settingsPath = path.join(dataDir, 'data', 'settings.json');
+  const currentLang = (() => {
+    try {
+      return JSON.parse(fs.readFileSync(settingsPath, 'utf8')).language;
+    } catch { return null; }
+  })();
+  const langChanged = currentLang !== initLang;
+
+  if (!fs.existsSync(localePath) || langChanged) {
     const presetPath = path.join(localesDestDir, `${initLang}.json`);
-    const fallbackPath = path.join(localesDestDir, 'en.json');
-    const sourcePath = fs.existsSync(presetPath) ? presetPath : fallbackPath;
-    if (fs.existsSync(sourcePath)) {
-      fs.cpSync(sourcePath, localePath);
+    if (fs.existsSync(presetPath)) {
+      // Use preset for known languages
+      fs.cpSync(presetPath, localePath);
+      log(`  Locale set from preset: ${initLang}`);
+    } else {
+      // Unknown language — copy en.json as fallback, agent will regenerate
+      const fallbackPath = path.join(localesDestDir, 'en.json');
+      if (fs.existsSync(fallbackPath)) {
+        fs.cpSync(fallbackPath, localePath);
+      }
+      log(`  Locale fallback to en (agent will generate ${initLang})`);
     }
   }
 
-  // Initialize settings.json if missing.
-  // This preserves existing language choices and only bootstraps empty workspaces.
-  const settingsPath = path.join(dataDir, 'data', 'settings.json');
-  if (!fs.existsSync(settingsPath)) {
+  // Always update settings.json with current language
+  if (!fs.existsSync(settingsPath) || langChanged) {
+    const existingSettings = (() => {
+      try { return JSON.parse(fs.readFileSync(settingsPath, 'utf8')); }
+      catch { return {}; }
+    })();
     fs.writeFileSync(
       settingsPath,
       JSON.stringify({
         language: initLang,
         language_explicit: true,
-        platform: {
+        platform: existingSettings.platform || {
           name: 'Visual Delivery',
           logo_url: '',
           slogan: 'Turn work into clear decisions.',
