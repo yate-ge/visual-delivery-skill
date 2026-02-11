@@ -3,20 +3,17 @@ import { Link } from 'react-router-dom';
 import { useDeliveries } from '../hooks/useDeliveries';
 import { t } from '../lib/i18n';
 
-function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return t('justNow');
-  if (min < 60) return t('minAgo', { n: min });
-  const hour = Math.floor(min / 60);
-  if (hour < 24) return t('hoursAgo', { n: hour });
-  const day = Math.floor(hour / 24);
-  return t('daysAgo', { n: day });
+function formatTime(dateStr) {
+  const d = new Date(dateStr);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function statusLabel(status) {
-  if (status === 'pending_feedback') return t('statusPending');
-  return t('statusNormal');
+function displayTime(delivery) {
+  const time = delivery.updated_at && delivery.updated_at !== delivery.created_at
+    ? delivery.updated_at
+    : delivery.created_at;
+  return formatTime(time);
 }
 
 export default function Dashboard() {
@@ -49,18 +46,15 @@ export default function Dashboard() {
           <Link key={delivery.id} to={`/d/${delivery.id}`} style={styles.card}>
             <div style={styles.cardTop}>
               <span style={styles.cardTitle}>{delivery.title}</span>
-              <span
-                style={{
-                  ...styles.status,
-                  ...(delivery.status === 'pending_feedback' ? styles.pending : styles.normal),
-                }}
-              >
-                {statusLabel(delivery.status)}
-              </span>
+              {delivery.status === 'pending_feedback' && (
+                <span style={{ ...styles.status, ...styles.pending }}>
+                  {t('statusPending')}
+                </span>
+              )}
             </div>
 
             <div style={styles.cardMeta}>
-              <span>{timeAgo(delivery.created_at)}</span>
+              <span>{displayTime(delivery)}</span>
             </div>
           </Link>
         ))}
@@ -124,11 +118,6 @@ const styles = {
     background: '#FEF2F2',
     color: '#991B1B',
     border: '1px solid #FCA5A5',
-  },
-  normal: {
-    background: '#ECFDF5',
-    color: '#065F46',
-    border: '1px solid #6EE7B7',
   },
   cardMeta: {
     display: 'flex',
