@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useDesignTokens } from '../hooks/useDesignTokens';
 import { flattenTokens } from '../lib/theme';
 import { fetchSettings, updateSettings } from '../lib/api';
-import { getLang, setLang, t } from '../lib/i18n';
+import { getLang, t } from '../lib/i18n';
 
 export default function Settings() {
   const tokens = useDesignTokens();
@@ -30,9 +30,13 @@ export default function Settings() {
     setSaving(true);
     setMessage('');
     try {
-      const next = await updateSettings(settings);
-      setSettings(next);
-      setLang(next.language);
+      const result = await updateSettings(settings);
+      if (result.locale_changed) {
+        // Locale was regenerated server-side — reload to pick up new strings
+        window.location.reload();
+        return;
+      }
+      setSettings(result);
       setMessage(t('settingsSaved'));
     } catch (err) {
       setMessage(t('saveFailed', { message: err.message }));
@@ -57,7 +61,6 @@ export default function Settings() {
       language: value,
       platform: prev?.platform || {},
     }));
-    setLang(value);
   }
 
   return (

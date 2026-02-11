@@ -41,10 +41,44 @@ app.set('port', port);
 setupRoutes(app, dataDir);
 
 if (fs.existsSync(uiDir)) {
-  app.use(express.static(uiDir));
+  // Serve static assets but NOT index.html (we inject locale into it)
+  app.use(express.static(uiDir, { index: false }));
+
+  // Read locale for injection into HTML
+  function readLocale() {
+    const localePath = path.join(dataDir, 'data', 'locale.json');
+    try {
+      return JSON.parse(fs.readFileSync(localePath, 'utf8'));
+    } catch {
+      return {};
+    }
+  }
+
+  // Read language code from settings
+  function readLangCode() {
+    const settingsPath = path.join(dataDir, 'data', 'settings.json');
+    try {
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      return settings.language || 'en';
+    } catch {
+      return 'en';
+    }
+  }
+
+  const indexHtmlPath = path.join(uiDir, 'index.html');
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api/') && !req.path.startsWith('/health')) {
-      res.sendFile(path.join(uiDir, 'index.html'));
+      try {
+        const html = fs.readFileSync(indexHtmlPath, 'utf8');
+        const locale = readLocale();
+        const lang = readLangCode();
+        const script = `<script>window.__VD_LOCALE__=${JSON.stringify(locale)};window.__VD_LANG__="${lang}";</script>`;
+        const injected = html.replace('</head>', `${script}\n</head>`);
+        res.type('html').send(injected);
+      } catch (err) {
+        console.error('Error serving index.html:', err.message);
+        res.status(500).send('Internal Server Error');
+      }
     }
   });
 }

@@ -183,6 +183,24 @@ async function main() {
     }
   }
 
+  // Copy locale presets to runtime (for server-side language switching)
+  const localesSourceDir = path.join(SKILL_DIR, 'templates', 'locales');
+  const localesDestDir = path.join(dataDir, 'locales');
+  if (fs.existsSync(localesSourceDir)) {
+    fs.cpSync(localesSourceDir, localesDestDir, { recursive: true, force: true });
+  }
+
+  // Generate locale.json from preset (only if missing — preserves user's language choice)
+  const localePath = path.join(dataDir, 'data', 'locale.json');
+  if (!fs.existsSync(localePath)) {
+    const presetPath = path.join(localesDestDir, `${initLang}.json`);
+    const fallbackPath = path.join(localesDestDir, 'en.json');
+    const sourcePath = fs.existsSync(presetPath) ? presetPath : fallbackPath;
+    if (fs.existsSync(sourcePath)) {
+      fs.cpSync(sourcePath, localePath);
+    }
+  }
+
   // Initialize settings.json if missing.
   // This preserves existing language choices and only bootstraps empty workspaces.
   const settingsPath = path.join(dataDir, 'data', 'settings.json');

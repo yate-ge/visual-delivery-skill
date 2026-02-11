@@ -766,9 +766,22 @@ function setupRoutes(app, dataDir) {
       };
 
       await writeJSON(settingsPath, next);
+
+      // Update locale.json when language changes
+      const languageChanged = hasLanguageInput && language !== current.language;
+      if (languageChanged) {
+        const localesDir = path.join(dataDir, 'locales');
+        const presetPath = path.join(localesDir, `${language}.json`);
+        const localePath = path.join(dataRoot, 'locale.json');
+        if (fs.existsSync(presetPath)) {
+          const preset = fs.readFileSync(presetPath, 'utf8');
+          fs.writeFileSync(localePath, preset, 'utf8');
+        }
+      }
+
       broadcast('settings_updated', next);
 
-      res.status(200).json(next);
+      res.status(200).json({ ...next, locale_changed: languageChanged });
     } catch (err) {
       console.error('Error updating settings:', err);
       res.status(500).json({
