@@ -12,16 +12,11 @@ import { useDesignTokens } from '../hooks/useDesignTokens';
 import ContentRenderer from '../components/ContentRenderer';
 import FeedbackSidebar from '../components/feedback/FeedbackSidebar';
 
-function timeAgo(dateStr) {
+function formatTime(dateStr) {
   if (!dateStr) return '';
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return t('justNow');
-  if (min < 60) return t('minAgo', { n: min });
-  const hour = Math.floor(min / 60);
-  if (hour < 24) return t('hoursAgo', { n: hour });
-  const day = Math.floor(hour / 24);
-  return t('daysAgo', { n: day });
+  const d = new Date(dateStr);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function createDraftItem(item) {
@@ -143,8 +138,10 @@ export default function DeliveryPage() {
           <h1 style={styles.title}>{delivery.title}</h1>
         </div>
         <div style={styles.metaRow}>
-          <span>{t('statusLabel')}: {delivery.status}</span>
-          <span>{t('createdLabel')} {timeAgo(delivery.created_at)}</span>
+          {delivery.status === 'pending_feedback' && (
+            <span style={styles.pendingBadge}>{t('statusPending')}</span>
+          )}
+          <span>{t('createdLabel')} {formatTime(delivery.updated_at || delivery.created_at)}</span>
         </div>
       </header>
 
@@ -211,9 +208,18 @@ const styles = {
   },
   metaRow: {
     display: 'flex',
+    alignItems: 'center',
     gap: '12px',
     fontSize: '14px',
     color: 'var(--vds-colors-text-secondary)',
+  },
+  pendingBadge: {
+    background: 'var(--vds-colors-warning, #f59e0b)',
+    color: '#fff',
+    fontSize: '12px',
+    fontWeight: 600,
+    padding: '2px 8px',
+    borderRadius: '10px',
   },
   layout: {
     display: 'flex',
