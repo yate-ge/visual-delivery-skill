@@ -142,6 +142,22 @@ Append execution timeline event(s).
 
 ## Feedback APIs
 
+### `GET /api/deliveries/:id/feedback`
+
+Lightweight endpoint — returns feedback items only, no delivery content.
+
+Response:
+
+```json
+{
+  "delivery_id": "d_...",
+  "status": "pending_feedback",
+  "feedback": [...all items...],
+  "pending_count": 2,
+  "pending_feedback": [...only unhandled items...]
+}
+```
+
 ### `POST /api/deliveries/:id/feedback/draft`
 
 Store sidebar drafts (no status change).

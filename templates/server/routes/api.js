@@ -414,6 +414,34 @@ function setupRoutes(app, dataDir) {
     }
   });
 
+  // Get feedback only (lightweight — no delivery content)
+  app.get('/api/deliveries/:id/feedback', (req, res) => {
+    try {
+      const delivery = readDelivery(req.params.id);
+      if (!delivery) {
+        return res.status(404).json({
+          error: { code: 'NOT_FOUND', message: `Delivery ${req.params.id} not found` },
+        });
+      }
+
+      const feedback = readDeliveryFeedback(req.params.id);
+      const pending = feedback.filter((item) => item.handled === false);
+
+      res.json({
+        delivery_id: req.params.id,
+        status: delivery.status,
+        feedback,
+        pending_count: pending.length,
+        pending_feedback: pending,
+      });
+    } catch (err) {
+      console.error('Error getting feedback:', err);
+      res.status(500).json({
+        error: { code: 'INTERNAL_ERROR', message: err.message },
+      });
+    }
+  });
+
   // List execution events for a delivery
   app.get('/api/deliveries/:id/execution-events', (req, res) => {
     try {

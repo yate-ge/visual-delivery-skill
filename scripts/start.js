@@ -158,6 +158,12 @@ async function main() {
       log('  Generating design specification...');
       fs.cpSync(path.join(SKILL_DIR, 'templates', 'design'), path.join(dataDir, 'design'), { recursive: true });
     }
+
+    // Remove any stale dist/ copied from templates — always rebuild on first run
+    const copiedDist = path.join(dataDir, 'ui', 'dist');
+    if (fs.existsSync(copiedDist)) {
+      fs.rmSync(copiedDist, { recursive: true });
+    }
   } else {
     // Ensure data dirs exist on subsequent runs
     fs.mkdirSync(path.join(dataDir, 'data', 'deliveries'), { recursive: true });

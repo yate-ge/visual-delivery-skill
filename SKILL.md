@@ -196,42 +196,59 @@ curl -s -X POST http://localhost:3847/api/deliveries \
 
 Tell user: "View the delivery at {url}".
 
-### Step 4: Feedback lifecycle
+### Step 4: Process user feedback
 
-All UI feedback flows through sidebar and one confirm submit button.
+When user submits feedback via the UI, the delivery status changes to `pending_feedback`.
 
-- Draft stage:
+#### 4a: Read feedback (lightweight)
 
-```bash
-POST /api/deliveries/:id/feedback/draft
-```
+Use ONE of these methods — both avoid loading the full HTML content:
 
-- Commit stage:
+**Method 1 — API (preferred):**
 
 ```bash
-POST /api/deliveries/:id/feedback/commit
+curl -s http://localhost:3847/api/deliveries/{DELIVERY_ID}/feedback
 ```
 
-- Agent resolve stage:
-
-```bash
-POST /api/deliveries/:id/feedback/resolve
+Returns:
+```json
+{
+  "delivery_id": "d_...",
+  "status": "pending_feedback",
+  "pending_count": 2,
+  "pending_feedback": [
+    {
+      "id": "f_...",
+      "kind": "interactive",
+      "payload": { "action": "accept_fix", "item_id": "issue-1", "label": "..." },
+      "handled": false
+    }
+  ],
+  "feedback": [...]
+}
 ```
 
-Delivery status logic:
+**Method 2 — Direct file read:**
 
-- `pending_feedback`: any feedback item has `handled=false`
-- `normal`: all feedback items handled
-
-User can revoke (undo) unhandled feedback via the sidebar UI. Agent can also revoke programmatically:
-
-```bash
-POST /api/deliveries/:id/feedback/revoke
+```
+{DATA_DIR}/data/deliveries/{DELIVERY_ID}/feedback.json
 ```
 
-### Step 5: Update delivery content (post-processing)
+Read the file and filter for `handled === false` entries.
 
-After resolving feedback, the agent may update the delivery page with revised content:
+#### 4b: Act on feedback
+
+Process each pending feedback item according to its `payload.action` and `payload.item_id`. Perform the actual work (fix code, update docs, etc.).
+
+#### 4c: Update delivery page (incremental — NOT full regeneration)
+
+After processing feedback, update the EXISTING delivery HTML to visually mark which items were addressed. Do NOT regenerate the entire page from scratch.
+
+Strategy: read the current HTML from `GET /api/deliveries/{DELIVERY_ID}`, then make **targeted edits** to the relevant sections only. For each processed item:
+- Add a visual "resolved" indicator (e.g., green checkmark, strikethrough, "✓ Resolved" badge)
+- Keep all other content unchanged
+
+Then push the updated HTML:
 
 ```bash
 curl -s -X PUT http://localhost:3847/api/deliveries/{DELIVERY_ID}/content \
@@ -239,15 +256,35 @@ curl -s -X PUT http://localhost:3847/api/deliveries/{DELIVERY_ID}/content \
   -d '{
     "content": {
       "type": "generated_html",
-      "html": "<!DOCTYPE html><html>...UPDATED PAGE...</html>"
-    },
-    "title": "Optional updated title"
+      "html": "<!DOCTYPE html>...INCREMENTALLY UPDATED PAGE..."
+    }
   }'
 ```
 
-The UI auto-refreshes via WebSocket.
+**Critical**: The updated HTML should be the original with minimal edits — typically just adding CSS classes or small HTML snippets to resolved items. This saves tokens and time vs regenerating the full page.
 
-### Step 6: Design and platform settings
+#### 4d: Resolve feedback
+
+Mark the processed feedback items as handled:
+
+```bash
+curl -s -X POST http://localhost:3847/api/deliveries/{DELIVERY_ID}/feedback/resolve \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "feedback_ids": ["f_...", "f_..."],
+    "handled_by": "agent"
+  }'
+```
+
+When all feedback is resolved, delivery status returns to `normal`.
+
+User can also revoke (undo) unhandled feedback via the sidebar UI, or agent can revoke programmatically:
+
+```bash
+POST /api/deliveries/:id/feedback/revoke
+```
+
+### Step 5: Design and platform settings
 
 - Read current design tokens:
 

@@ -2,6 +2,7 @@
 
 ## Table of Contents
 
+- [File Storage](#file-storage)
 - [Overview](#overview)
 - [Draft Feedback Item](#draft-feedback-item)
 - [Committed Feedback Item](#committed-feedback-item)
@@ -9,6 +10,16 @@
 - [Target Object](#target-object)
 - [Lifecycle Rules](#lifecycle-rules)
 - [Examples](#examples)
+
+## File Storage
+
+Committed feedback is stored at:
+
+```
+{DATA_DIR}/data/deliveries/{DELIVERY_ID}/feedback.json
+```
+
+The file contains a JSON array of committed feedback items. Agent can read this file directly as an alternative to the API endpoint.
 
 ## Overview
 
