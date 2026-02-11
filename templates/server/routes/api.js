@@ -5,9 +5,8 @@ const { writeJSON, readJSONArray, readJSONObject, updateJSON } = require('../lib
 const { broadcast } = require('../lib/ws');
 const { nowLocalISO, ensureLocalISO } = require('../lib/time');
 
-const DELIVERY_MODES = ['task_delivery', 'alignment'];
+const DELIVERY_MODES = ['task_delivery'];
 const DELIVERY_STATUSES = ['normal', 'pending_feedback'];
-const ALIGNMENT_STATES = ['active', 'resolved', 'canceled'];
 const SUPPORTED_LANGUAGES = ['zh', 'en'];
 
 const DEFAULT_SETTINGS = {
@@ -63,8 +62,6 @@ function mapIndexEntry(delivery) {
     created_at: delivery.created_at,
     updated_at: delivery.updated_at,
     metadata: delivery.metadata,
-    agent_session_id: delivery.agent_session_id,
-    alignment_state: delivery.alignment_state,
   };
 }
 
@@ -85,18 +82,6 @@ function setupRoutes(app, dataDir) {
 
   function deliveryFile(deliveryId, fileName) {
     return path.join(deliveryDir(deliveryId), fileName);
-  }
-
-  function sessionAlignmentDir(agentSessionId) {
-    return path.join(sessionsDir, agentSessionId, 'alignment');
-  }
-
-  function activeAlignmentPath(agentSessionId) {
-    return path.join(sessionAlignmentDir(agentSessionId), 'active.json');
-  }
-
-  function alignmentHistoryDir(agentSessionId) {
-    return path.join(sessionAlignmentDir(agentSessionId), 'history');
   }
 
   async function appendIndex(delivery) {
@@ -253,69 +238,7 @@ function setupRoutes(app, dataDir) {
     return events;
   }
 
-  async function archiveActiveAlignment(agentSessionId, activeRecord, terminalState, reason, endedAt) {
-    if (!activeRecord) return;
-    const historyPath = path.join(
-      alignmentHistoryDir(agentSessionId),
-      `${Date.now()}_${activeRecord.delivery_id}.json`
-    );
-    fs.mkdirSync(path.dirname(historyPath), { recursive: true });
-
-    await writeJSON(historyPath, {
-      ...activeRecord,
-      terminal_state: terminalState,
-      reason,
-      ended_at: endedAt,
-    });
-  }
-
-  async function endActiveAlignment(agentSessionId, threadId, terminalState, reason) {
-    const activePath = activeAlignmentPath(agentSessionId);
-    const activeRecord = readJSONObject(activePath);
-
-    if (!activeRecord) {
-      return { status: 'no_active' };
-    }
-
-    if (threadId && activeRecord.thread_id !== threadId) {
-      return {
-        status: 'error',
-        code: 'THREAD_MISMATCH',
-        message: 'thread_id does not match active alignment',
-      };
-    }
-
-    const now = nowLocalISO();
-    const delivery = readDelivery(activeRecord.delivery_id);
-    if (delivery) {
-      delivery.alignment_state = terminalState;
-      delivery.updated_at = now;
-      await writeDelivery(delivery);
-      await updateIndex(delivery);
-      broadcast('update_delivery', mapIndexEntry(delivery));
-    }
-
-    await archiveActiveAlignment(agentSessionId, activeRecord, terminalState, reason, now);
-    try {
-      fs.unlinkSync(activePath);
-    } catch (err) {
-      if (err.code !== 'ENOENT') throw err;
-    }
-
-    broadcast('alignment_update', {
-      agent_session_id: agentSessionId,
-      delivery_id: activeRecord.delivery_id,
-      alignment_state: terminalState,
-      reason,
-    });
-
-    return {
-      status: terminalState,
-      delivery_id: activeRecord.delivery_id,
-    };
-  }
-
-  async function createDeliveryRecord({ mode, title, content, metadata, agentSessionId, threadId, alignmentState }) {
+  async function createDeliveryRecord({ mode, title, content, metadata }) {
     const id = generateId('d');
     const now = nowLocalISO();
 
@@ -331,9 +254,6 @@ function setupRoutes(app, dataDir) {
         project_name: projectDirName,
         task_name: title,
       }),
-      agent_session_id: agentSessionId || null,
-      thread_id: threadId || null,
-      alignment_state: alignmentState || null,
       created_at: now,
       updated_at: now,
     };
@@ -347,44 +267,6 @@ function setupRoutes(app, dataDir) {
     broadcast('new_delivery', mapIndexEntry(delivery));
 
     return delivery;
-  }
-
-  async function upsertAlignment({ title, content, metadata, agent_session_id: agentSessionId, thread_id: threadId }) {
-    if (!agentSessionId || !threadId) {
-      return {
-        error: {
-          code: 'INVALID_REQUEST',
-          message: 'agent_session_id and thread_id are required for alignment',
-        },
-      };
-    }
-
-    const replaced = await endActiveAlignment(agentSessionId, null, 'canceled', 'replaced_by_new_alignment');
-
-    const delivery = await createDeliveryRecord({
-      mode: 'alignment',
-      title,
-      content,
-      metadata,
-      agentSessionId,
-      threadId,
-      alignmentState: 'active',
-    });
-
-    const now = nowLocalISO();
-    await writeJSON(activeAlignmentPath(agentSessionId), {
-      agent_session_id: agentSessionId,
-      thread_id: threadId,
-      delivery_id: delivery.id,
-      status: 'active',
-      created_at: now,
-      last_heartbeat_at: now,
-    });
-
-    return {
-      delivery,
-      replaced_delivery_id: replaced.delivery_id || null,
-    };
   }
 
   function hydrateDelivery(deliveryId) {
@@ -441,14 +323,7 @@ function setupRoutes(app, dataDir) {
   // Create delivery
   app.post('/api/deliveries', async (req, res) => {
     try {
-      const {
-        mode,
-        title,
-        content,
-        metadata,
-        agent_session_id: agentSessionId,
-        thread_id: threadId,
-      } = req.body;
+      const { mode, title, content, metadata } = req.body;
 
       if (!mode || !title || !content) {
         return res.status(400).json({
@@ -471,27 +346,6 @@ function setupRoutes(app, dataDir) {
             code: 'INVALID_REQUEST',
             message: 'content must be { type: "generated_html", html: "..." } or { type: "ui_spec", ui_spec: {...} }',
           },
-        });
-      }
-
-      if (mode === 'alignment') {
-        const result = await upsertAlignment({
-          title,
-          content,
-          metadata,
-          agent_session_id: agentSessionId,
-          thread_id: threadId,
-        });
-
-        if (result.error) {
-          return res.status(400).json({ error: result.error });
-        }
-
-        const port = app.get('port') || 3847;
-        return res.status(201).json({
-          id: result.delivery.id,
-          url: `http://localhost:${port}/d/${result.delivery.id}`,
-          replaced_delivery_id: result.replaced_delivery_id,
         });
       }
 
@@ -519,11 +373,10 @@ function setupRoutes(app, dataDir) {
   app.get('/api/deliveries', (req, res) => {
     try {
       let entries = readJSONArray(indexPath);
-      const { mode, status, limit, offset, agent_session_id: agentSessionId } = req.query;
+      const { mode, status, limit, offset } = req.query;
 
       if (mode) entries = entries.filter((item) => item.mode === mode);
       if (status) entries = entries.filter((item) => item.status === status);
-      if (agentSessionId) entries = entries.filter((item) => item.agent_session_id === agentSessionId);
 
       const total = entries.length;
       const off = parseInt(offset, 10) || 0;
@@ -848,211 +701,6 @@ function setupRoutes(app, dataDir) {
     }
   });
 
-  // Upsert active alignment (unique per session)
-  app.post('/api/alignment/upsert', async (req, res) => {
-    try {
-      const { title, content, metadata, agent_session_id: agentSessionId, thread_id: threadId } = req.body;
-
-      if (!title || !content || !ensureValidContent(content)) {
-        return res.status(400).json({
-          error: {
-            code: 'INVALID_REQUEST',
-            message: 'title and valid content are required',
-          },
-        });
-      }
-
-      const result = await upsertAlignment({
-        title,
-        content,
-        metadata,
-        agent_session_id: agentSessionId,
-        thread_id: threadId,
-      });
-
-      if (result.error) {
-        return res.status(400).json({ error: result.error });
-      }
-
-      const port = app.get('port') || 3847;
-      res.status(201).json({
-        id: result.delivery.id,
-        url: `http://localhost:${port}/d/${result.delivery.id}`,
-        replaced_delivery_id: result.replaced_delivery_id,
-        thread_id: threadId,
-      });
-    } catch (err) {
-      console.error('Error upserting alignment:', err);
-      res.status(500).json({
-        error: { code: 'INTERNAL_ERROR', message: err.message },
-      });
-    }
-  });
-
-  // Get current active alignment for a session
-  app.get('/api/alignment/active', (req, res) => {
-    try {
-      const agentSessionId = req.query.agent_session_id;
-      if (!agentSessionId) {
-        return res.status(400).json({
-          error: { code: 'INVALID_REQUEST', message: 'agent_session_id is required' },
-        });
-      }
-
-      const activeRecord = readJSONObject(activeAlignmentPath(agentSessionId));
-      if (!activeRecord) {
-        return res.status(200).json({ active: null });
-      }
-
-      const delivery = hydrateDelivery(activeRecord.delivery_id);
-      if (!delivery) {
-        return res.status(200).json({ active: null });
-      }
-
-      const pendingFeedback = delivery.feedback.filter((item) => item.handled === false);
-
-      res.status(200).json({
-        active: {
-          ...delivery,
-          thread_id: activeRecord.thread_id,
-          last_heartbeat_at: activeRecord.last_heartbeat_at,
-        },
-        pending_feedback_count: pendingFeedback.length,
-        pending_feedback: pendingFeedback,
-      });
-    } catch (err) {
-      console.error('Error getting active alignment:', err);
-      res.status(500).json({
-        error: { code: 'INTERNAL_ERROR', message: err.message },
-      });
-    }
-  });
-
-  // Alignment thread heartbeat
-  app.post('/api/alignment/heartbeat', async (req, res) => {
-    try {
-      const { agent_session_id: agentSessionId, thread_id: threadId } = req.body;
-
-      if (!agentSessionId || !threadId) {
-        return res.status(400).json({
-          error: {
-            code: 'INVALID_REQUEST',
-            message: 'agent_session_id and thread_id are required',
-          },
-        });
-      }
-
-      const activePath = activeAlignmentPath(agentSessionId);
-      const activeRecord = readJSONObject(activePath);
-      if (!activeRecord) {
-        return res.status(404).json({
-          error: { code: 'NOT_FOUND', message: 'No active alignment found for session' },
-        });
-      }
-
-      if (activeRecord.thread_id !== threadId) {
-        return res.status(409).json({
-          error: { code: 'THREAD_MISMATCH', message: 'thread_id does not match active alignment' },
-        });
-      }
-
-      const now = nowLocalISO();
-      activeRecord.last_heartbeat_at = now;
-      await writeJSON(activePath, activeRecord);
-
-      res.status(200).json({ status: 'ok', last_heartbeat_at: now });
-    } catch (err) {
-      console.error('Error in alignment heartbeat:', err);
-      res.status(500).json({
-        error: { code: 'INTERNAL_ERROR', message: err.message },
-      });
-    }
-  });
-
-  // Cancel active alignment (thread close / timeout / interrupt)
-  app.post('/api/alignment/cancel', async (req, res) => {
-    try {
-      const { agent_session_id: agentSessionId, thread_id: threadId, reason } = req.body;
-
-      if (!agentSessionId) {
-        return res.status(400).json({
-          error: { code: 'INVALID_REQUEST', message: 'agent_session_id is required' },
-        });
-      }
-
-      const result = await endActiveAlignment(
-        agentSessionId,
-        threadId || null,
-        'canceled',
-        reason || 'thread_closed'
-      );
-
-      if (result.status === 'error') {
-        return res.status(409).json({
-          error: { code: result.code, message: result.message },
-        });
-      }
-
-      res.status(200).json(result);
-    } catch (err) {
-      console.error('Error canceling alignment:', err);
-      res.status(500).json({
-        error: { code: 'INTERNAL_ERROR', message: err.message },
-      });
-    }
-  });
-
-  // Resolve active alignment (agent received user confirmation)
-  app.post('/api/alignment/resolve', async (req, res) => {
-    try {
-      const {
-        agent_session_id: agentSessionId,
-        thread_id: threadId,
-        delivery_id: deliveryId,
-      } = req.body;
-
-      if (!agentSessionId) {
-        return res.status(400).json({
-          error: { code: 'INVALID_REQUEST', message: 'agent_session_id is required' },
-        });
-      }
-
-      const activeRecord = readJSONObject(activeAlignmentPath(agentSessionId));
-      if (!activeRecord) {
-        return res.status(200).json({ status: 'no_active' });
-      }
-
-      if (deliveryId && activeRecord.delivery_id !== deliveryId) {
-        return res.status(409).json({
-          error: {
-            code: 'DELIVERY_MISMATCH',
-            message: 'delivery_id does not match active alignment',
-          },
-        });
-      }
-
-      const result = await endActiveAlignment(
-        agentSessionId,
-        threadId || null,
-        'resolved',
-        'agent_received_feedback'
-      );
-
-      if (result.status === 'error') {
-        return res.status(409).json({
-          error: { code: result.code, message: result.message },
-        });
-      }
-
-      res.status(200).json(result);
-    } catch (err) {
-      console.error('Error resolving alignment:', err);
-      res.status(500).json({
-        error: { code: 'INTERNAL_ERROR', message: err.message },
-      });
-    }
-  });
-
   // Settings
   app.get('/api/settings', async (req, res) => {
     try {
@@ -1270,10 +918,6 @@ function setupRoutes(app, dataDir) {
     }
   });
 
-  // Validate constants at startup (defensive)
-  if (!DELIVERY_STATUSES.includes('normal') || !ALIGNMENT_STATES.includes('active')) {
-    throw new Error('Invalid status configuration');
-  }
 }
 
 module.exports = { setupRoutes };

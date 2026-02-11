@@ -103,29 +103,27 @@ async function main() {
     process.exit(1);
   }
 
-  // Check if already running
+  // Check if already running — stop old server so we can resync templates and restart
   const pidFile = path.join(dataDir, 'server.pid');
   if (fs.existsSync(pidFile)) {
     const pid = parseInt(fs.readFileSync(pidFile, 'utf8'));
     if (isProcessAlive(pid)) {
-      // Verify it's our server by checking health
+      log(`Stopping previous server (PID ${pid}) to resync templates...`);
       try {
-        const res = await fetch(`http://localhost:${port}/health`);
-        if (res.ok) {
-          log(`Server already running at http://localhost:${port} (PID ${pid})`);
-          outputJSON({
-            status: 'already_running',
-            local_url: `http://localhost:${port}`,
-            pid,
-            first_run: false
-          });
-          process.exit(0);
+        process.kill(pid, 'SIGTERM');
+        // Wait for process to exit (up to 5s)
+        const killDeadline = Date.now() + 5000;
+        while (Date.now() < killDeadline && isProcessAlive(pid)) {
+          await sleep(200);
+        }
+        if (isProcessAlive(pid)) {
+          process.kill(pid, 'SIGKILL');
+          await sleep(500);
         }
       } catch {
-        // Port not responding, stale PID
+        // Process already gone
       }
     }
-    // Stale PID file
     try { fs.unlinkSync(pidFile); } catch {}
   }
 

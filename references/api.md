@@ -6,7 +6,6 @@
 - [Health](#health)
 - [Delivery APIs](#delivery-apis)
 - [Feedback APIs](#feedback-apis)
-- [Alignment APIs](#alignment-apis)
 - [Settings APIs](#settings-apis)
 - [Design Tokens](#design-tokens)
 - [WebSocket Events](#websocket-events)
@@ -30,16 +29,14 @@ Response:
 
 ### `POST /api/deliveries`
 
-Create `task_delivery` or `alignment` delivery.
+Create a task delivery.
 
 Request body:
 
 ```json
 {
-  "mode": "task_delivery|alignment",
+  "mode": "task_delivery",
   "title": "string",
-  "agent_session_id": "string (required for alignment)",
-  "thread_id": "string (required for alignment)",
   "metadata": {
     "project_name": "string",
     "task_name": "string",
@@ -58,20 +55,16 @@ Response:
 ```json
 {
   "id": "d_1771000000_001",
-  "url": "http://localhost:3847/d/d_1771000000_001",
-  "replaced_delivery_id": "d_1771000000_000"
+  "url": "http://localhost:3847/d/d_1771000000_001"
 }
 ```
-
-`replaced_delivery_id` is present when alignment upsert replaces old active alignment.
 
 ### `GET /api/deliveries`
 
 Query params:
 
-- `mode` = `task_delivery|alignment`
+- `mode` = `task_delivery`
 - `status` = `normal|pending_feedback`
-- `agent_session_id`
 - `limit` (default 50)
 - `offset` (default 0)
 
@@ -87,9 +80,7 @@ Response:
       "title": "...",
       "created_at": "...",
       "updated_at": "...",
-      "metadata": {"project_name":"...","task_name":"..."},
-      "agent_session_id": null,
-      "alignment_state": null
+      "metadata": {"project_name":"...","task_name":"..."}
     }
   ],
   "total": 1
@@ -265,80 +256,6 @@ Compatibility endpoint to quickly append annotation draft.
 }
 ```
 
-## Alignment APIs
-
-### `POST /api/alignment/upsert`
-
-Upsert unique active alignment by `agent_session_id`.
-
-```json
-{
-  "title": "...",
-  "agent_session_id": "session-1",
-  "thread_id": "thread-1",
-  "metadata": {...},
-  "content": {
-    "type": "generated_html",
-    "html": "<!DOCTYPE html>..."
-  }
-}
-```
-
-Old active alignment is moved to history with terminal state `canceled`.
-
-### `GET /api/alignment/active?agent_session_id=...`
-
-Response:
-
-```json
-{
-  "active": {
-    "id": "d_...",
-    "mode": "alignment",
-    "alignment_state": "active",
-    "thread_id": "thread-1",
-    "feedback": []
-  },
-  "pending_feedback_count": 0,
-  "pending_feedback": []
-}
-```
-
-### `POST /api/alignment/heartbeat`
-
-```json
-{
-  "agent_session_id": "session-1",
-  "thread_id": "thread-1"
-}
-```
-
-Updates `last_heartbeat_at` for active alignment.
-
-### `POST /api/alignment/cancel`
-
-```json
-{
-  "agent_session_id": "session-1",
-  "thread_id": "thread-1",
-  "reason": "thread_closed"
-}
-```
-
-Marks active alignment as canceled.
-
-### `POST /api/alignment/resolve`
-
-```json
-{
-  "agent_session_id": "session-1",
-  "thread_id": "thread-1",
-  "delivery_id": "d_..."
-}
-```
-
-Marks active alignment as resolved.
-
 ## Settings APIs
 
 ### `GET /api/settings`
@@ -401,7 +318,6 @@ Server-to-client events:
 - `new_delivery`
 - `update_delivery`
 - `feedback_received`
-- `alignment_update`
 - `settings_updated`
 - `design_updated`
 - `content_updated`
@@ -431,6 +347,4 @@ Common codes:
 
 - `INVALID_REQUEST` (400)
 - `NOT_FOUND` (404)
-- `THREAD_MISMATCH` (409)
-- `DELIVERY_MISMATCH` (409)
 - `INTERNAL_ERROR` (500)

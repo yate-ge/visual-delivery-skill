@@ -7,7 +7,7 @@
 ```
 .
 ├── SKILL.md              # Agent 指令文件（技能入口）
-├── scripts/              # Node.js 脚本（start.js, stop.js, await-feedback.js）
+├── scripts/              # Node.js 脚本（start.js, stop.js）
 ├── references/           # SKILL.md 的补充参考文档
 ├── templates/            # 只读模板（首次运行复制到工作目录）
 │   ├── server/           # Express + WebSocket 服务端
@@ -44,7 +44,7 @@
 - 统一术语：delivery（交付）、feedback（反馈）、annotation（标注）、blocking/interactive/passive（模式）
 
 ### 脚本
-- 三个脚本各司其职，不添加新脚本
+- 两个脚本各司其职，不添加新脚本
 - 错误处理：脚本自己解决问题，不甩给 agent
 - `already_running` 是成功（exit 0），超时也是正常退出
 

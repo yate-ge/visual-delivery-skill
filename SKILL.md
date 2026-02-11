@@ -1,16 +1,15 @@
 ---
 name: visual-delivery
 description: >
-  Delivers task outcomes through a generative UI web interface with two modes:
-  task_delivery (result presentation + feedback collection) and alignment
-  (decision/confirmation pages that block agent progress). Use when the agent
-  should communicate work visually, collect structured feedback, or wait for
-  session-scoped confirmation. Skip for simple inline text answers.
+  Delivers task outcomes through a generative UI web interface. Creates visual
+  result presentations with structured feedback collection. Use when the agent
+  should communicate work visually or collect structured feedback.
+  Skip for simple inline text answers.
 ---
 
 ## Visual Delivery
 
-Deliver results and alignment requests through local generative UI pages.
+Deliver results through local generative UI pages.
 
 ### Paths
 
@@ -25,7 +24,6 @@ When this skill is invoked, IMMEDIATELY execute Step 1 below. Do NOT:
 - Output a description or summary of the skill's capabilities
 - Paraphrase the skill description from the frontmatter
 - Ask "What would you like me to help you with?" or similar open-ended questions
-- List the available modes (task_delivery / alignment) as a menu
 
 Instead, go directly to Step 1: start the service, show the URL, and ask the remote access question.
 
@@ -107,12 +105,7 @@ node {SKILL_DIR}/scripts/start.js --data-dir {DATA_DIR} --remote
 
 If `remote_url` is returned, tell user the tunnel URL.
 
-### Step 2: Choose mode
-
-- Use **task_delivery** for visual task reporting and feedback collection.
-- Use **alignment** for session-scoped decisions where agent needs confirmation.
-
-### Step 3: Generate delivery page (Generative UI)
+### Step 2: Generate delivery page (Generative UI)
 
 Generate `content.type = "generated_html"` — a complete, self-contained HTML page.
 
@@ -178,9 +171,7 @@ Per-item feedback example (survey-style choices):
 
 The platform Bridge Script automatically captures clicks and routes them to the feedback sidebar. Agent does NOT need to write any postMessage code.
 
-### Step 4: Create delivery
-
-#### Task delivery
+### Step 3: Create delivery
 
 Tell user: "Preparing visual delivery..."
 
@@ -205,60 +196,7 @@ curl -s -X POST http://localhost:3847/api/deliveries \
 
 Tell user: "View the delivery at {url}".
 
-#### Alignment delivery (session-unique)
-
-Tell user: "Creating alignment page for your confirmation..."
-
-```bash
-curl -s -X POST http://localhost:3847/api/deliveries \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "mode": "alignment",
-    "title": "YOUR ALIGNMENT TITLE",
-    "agent_session_id": "YOUR_AGENT_SESSION_ID",
-    "thread_id": "YOUR_WAIT_THREAD_ID",
-    "metadata": {
-      "project_name": "YOUR PROJECT",
-      "task_name": "YOUR TASK",
-      "generated_at": "ISO_TIME",
-      "audience": "decision-maker"
-    },
-    "content": {
-      "type": "generated_html",
-      "html": "<!DOCTYPE html><html>...YOUR GENERATED PAGE...</html>"
-    }
-  }'
-```
-
-Rules:
-
-- One active alignment per `agent_session_id`.
-- New alignment replaces old active alignment and marks old one as canceled.
-- If wait thread closes, alignment must be canceled.
-- Alignment content is generated HTML (same as task_delivery). The platform shell provides the submit/confirm button.
-
-### Step 5: Wait for alignment feedback
-
-Use wait script for blocking flow:
-
-```bash
-node {SKILL_DIR}/scripts/await-feedback.js \
-  --title "YOUR ALIGNMENT TITLE" \
-  --agent-session-id "YOUR_AGENT_SESSION_ID" \
-  --thread-id "YOUR_WAIT_THREAD_ID" \
-  --ui-spec-file "YOUR_UI_SPEC_FILE.json" \
-  --metadata '{"project_name":"...","task_name":"..."}'
-```
-
-Script semantics:
-
-- registers/upserts alignment
-- heartbeat every 2 seconds
-- if thread exits, alignment is canceled
-- if user submits feedback, script returns `status: responded`
-- timeout returns `status: timeout` and cancels alignment
-
-### Step 6: Feedback lifecycle
+### Step 4: Feedback lifecycle
 
 All UI feedback flows through sidebar and one confirm submit button.
 
@@ -291,7 +229,7 @@ User can revoke (undo) unhandled feedback via the sidebar UI. Agent can also rev
 POST /api/deliveries/:id/feedback/revoke
 ```
 
-### Step 6b: Update delivery content (post-processing)
+### Step 5: Update delivery content (post-processing)
 
 After resolving feedback, the agent may update the delivery page with revised content:
 
@@ -309,27 +247,7 @@ curl -s -X PUT http://localhost:3847/api/deliveries/{DELIVERY_ID}/content \
 
 The UI auto-refreshes via WebSocket.
 
-### Step 7: Alignment lifecycle operations
-
-- Get active alignment:
-
-```bash
-GET /api/alignment/active?agent_session_id=...
-```
-
-- Cancel active alignment:
-
-```bash
-POST /api/alignment/cancel
-```
-
-- Resolve active alignment (after agent receives confirmation):
-
-```bash
-POST /api/alignment/resolve
-```
-
-### Step 8: Design and platform settings
+### Step 6: Design and platform settings
 
 - Read current design tokens:
 

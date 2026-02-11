@@ -1,9 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useDeliveries } from '../hooks/useDeliveries';
 import { t } from '../lib/i18n';
-
-const MODE_FILTERS = ['all', 'task_delivery', 'alignment'];
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -16,12 +14,6 @@ function timeAgo(dateStr) {
   return t('daysAgo', { n: day });
 }
 
-function modeLabel(mode) {
-  if (mode === 'task_delivery') return t('modeTask');
-  if (mode === 'alignment') return t('modeAlignment');
-  return t('modeAll');
-}
-
 function statusLabel(status) {
   if (status === 'pending_feedback') return t('statusPending');
   return t('statusNormal');
@@ -29,20 +21,14 @@ function statusLabel(status) {
 
 export default function Dashboard() {
   const { deliveries, loading, error } = useDeliveries();
-  const [filter, setFilter] = useState('all');
 
   const filtered = useMemo(() => {
-    const byMode = filter === 'all' ? deliveries : deliveries.filter((item) => item.mode === filter);
-    return [...byMode].sort((a, b) => {
+    return [...deliveries].sort((a, b) => {
       if (a.status === 'pending_feedback' && b.status !== 'pending_feedback') return -1;
       if (a.status !== 'pending_feedback' && b.status === 'pending_feedback') return 1;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [deliveries, filter]);
-
-  const activeAlignment = deliveries.find(
-    (item) => item.mode === 'alignment' && item.alignment_state === 'active'
-  );
+  }, [deliveries]);
 
   return (
     <div style={styles.container}>
@@ -50,30 +36,6 @@ export default function Dashboard() {
         <h1 style={styles.title}>{t('appTitle')}</h1>
         <Link to="/settings" style={styles.settingsLink}>{t('settings')}</Link>
       </header>
-
-      {activeAlignment && (
-        <div style={styles.alignmentBanner}>
-          <div style={styles.bannerTitle}>{t('activeAlignment')}</div>
-          <Link to={`/d/${activeAlignment.id}`} style={styles.bannerLink}>
-            {activeAlignment.title}
-          </Link>
-        </div>
-      )}
-
-      <div style={styles.filters}>
-        {MODE_FILTERS.map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setFilter(mode)}
-            style={{
-              ...styles.filterBtn,
-              ...(filter === mode ? styles.filterBtnActive : {}),
-            }}
-          >
-            {modeLabel(mode)}
-          </button>
-        ))}
-      </div>
 
       {loading && <div style={styles.empty}>{t('loadingDeliveries')}</div>}
       {error && <div style={styles.error}>Error: {error}</div>}
@@ -98,8 +60,6 @@ export default function Dashboard() {
             </div>
 
             <div style={styles.cardMeta}>
-              <span>{modeLabel(delivery.mode)}</span>
-              {delivery.mode === 'alignment' && <span>{delivery.alignment_state || t('inactive')}</span>}
               <span>{timeAgo(delivery.created_at)}</span>
             </div>
           </Link>
@@ -128,45 +88,6 @@ const styles = {
   settingsLink: {
     color: 'var(--vds-colors-text-secondary)',
     fontSize: '15px',
-  },
-  alignmentBanner: {
-    border: '1px solid #FCD34D',
-    background: '#FFFBEB',
-    borderRadius: '12px',
-    padding: '12px',
-    marginBottom: '16px',
-  },
-  bannerTitle: {
-    fontSize: '13px',
-    textTransform: 'uppercase',
-    color: '#92400E',
-    marginBottom: '4px',
-  },
-  bannerLink: {
-    fontSize: '16px',
-    color: '#92400E',
-    fontWeight: '600',
-    textDecoration: 'none',
-  },
-  filters: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '12px',
-  },
-  filterBtn: {
-    border: '1px solid var(--vds-colors-border)',
-    borderRadius: '999px',
-    background: 'white',
-    padding: '6px 12px',
-    fontSize: '13px',
-    cursor: 'pointer',
-    color: 'var(--vds-colors-text-secondary)',
-    fontFamily: 'inherit',
-  },
-  filterBtnActive: {
-    background: 'var(--vds-colors-primary)',
-    borderColor: 'var(--vds-colors-primary)',
-    color: 'white',
   },
   list: {
     display: 'flex',

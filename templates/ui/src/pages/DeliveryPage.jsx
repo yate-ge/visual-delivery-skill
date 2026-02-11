@@ -141,20 +141,12 @@ export default function DeliveryPage() {
         <Link to="/" style={styles.backLink}>{t('back')}</Link>
         <div style={styles.titleRow}>
           <h1 style={styles.title}>{delivery.title}</h1>
-          {delivery.mode === 'alignment' && <span style={{ ...styles.modeBadge, ...styles.modeAlign }}>{t('alignmentBadge')}</span>}
         </div>
         <div style={styles.metaRow}>
           <span>{t('statusLabel')}: {delivery.status}</span>
           <span>{t('createdLabel')} {timeAgo(delivery.created_at)}</span>
-          {delivery.mode === 'alignment' && <span>{t('alignmentLabel')}: {delivery.alignment_state || t('notAvailable')}</span>}
         </div>
       </header>
-
-      {delivery.mode === 'alignment' && (
-        <div style={styles.alignmentNotice}>
-          {t('alignmentNotice')}
-        </div>
-      )}
 
       <div style={styles.layout}>
         <main style={styles.main}>
@@ -217,33 +209,11 @@ const styles = {
     fontSize: '24px',
     color: 'var(--vds-colors-text)',
   },
-  modeBadge: {
-    textTransform: 'uppercase',
-    fontSize: '12px',
-    borderRadius: '999px',
-    padding: '3px 10px',
-    border: '1px solid transparent',
-    fontWeight: '600',
-  },
-  modeAlign: {
-    background: '#FFFBEB',
-    color: '#92400E',
-    borderColor: '#FCD34D',
-  },
   metaRow: {
     display: 'flex',
     gap: '12px',
     fontSize: '14px',
     color: 'var(--vds-colors-text-secondary)',
-  },
-  alignmentNotice: {
-    border: '1px solid #FCD34D',
-    background: '#FFFBEB',
-    color: '#92400E',
-    borderRadius: '10px',
-    padding: '10px 12px',
-    marginBottom: '14px',
-    fontSize: '14px',
   },
   layout: {
     display: 'flex',

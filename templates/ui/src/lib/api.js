@@ -88,14 +88,6 @@ export async function addAnnotation(deliveryId, annotation) {
   return res.json();
 }
 
-export async function fetchActiveAlignment(agentSessionId) {
-  const res = await fetch(
-    `${BASE}/api/alignment/active?agent_session_id=${encodeURIComponent(agentSessionId)}`
-  );
-  await ensureOk(res, 'Failed to fetch active alignment');
-  return res.json();
-}
-
 export async function fetchSettings() {
   const res = await fetch(`${BASE}/api/settings`);
   await ensureOk(res, 'Failed to fetch settings');
