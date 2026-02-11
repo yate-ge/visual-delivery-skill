@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useDesignTokens } from '../hooks/useDesignTokens';
 import { flattenTokens } from '../lib/theme';
 import { fetchSettings, updateSettings } from '../lib/api';
-import { getLang, t } from '../lib/i18n';
+import { t } from '../lib/i18n';
 
 export default function Settings() {
   const tokens = useDesignTokens();
@@ -60,7 +60,7 @@ export default function Settings() {
           <div style={styles.form}>
             <label style={styles.label}>
               {t('language')}
-              <div style={styles.langDisplay}>{settings.language || getLang()}</div>
+              <div style={styles.langDisplay}>{t('languageName')}</div>
             </label>
 
             <label style={styles.label}>
