@@ -49,6 +49,14 @@ Instead, go directly to Step 1: start the service, show the URL, and ask the rem
   2) user explicitly asks to change platform language (then call `PUT /api/settings`).
 - Agent chat replies use `conversation_lang`; generated delivery page text uses `platform_lang`.
 
+#### Locale system
+
+UI strings are externalized into locale preset files (`templates/locales/en.json`, `templates/locales/zh.json`). At startup, `start.js` copies presets to `{DATA_DIR}/locales/` and generates `{DATA_DIR}/data/locale.json` from the matching preset (only if `locale.json` does not already exist).
+
+The server injects the active locale into every HTML response synchronously via `<script>window.__VD_LOCALE__={...};window.__VD_LANG__="...";</script>` before `</head>`. This eliminates language flash on page load — the UI reads translations from `window.__VD_LOCALE__` immediately, with no async fetch.
+
+When language changes via `PUT /api/settings`, the server copies the matching preset to `locale.json` and returns `locale_changed: true`. The Settings page detects this and triggers a full page reload to pick up the new locale.
+
 ### Step 1: Ensure service is running
 
 Detect interaction language first:
@@ -298,6 +306,8 @@ GET /api/design-tokens
 GET /api/settings
 PUT /api/settings
 ```
+
+When updating language via `PUT /api/settings`, the server swaps the active `locale.json` to the matching preset and returns `{ ..., locale_changed: true }`. The browser reloads automatically to apply the new locale. Supported languages: `zh`, `en`.
 
 Tell user after update: "Settings updated. The UI refreshes in real time."
 

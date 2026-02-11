@@ -85,5 +85,9 @@
   "settingsSaved": "Platform settings saved.",
   "loading": "Loading...",
   "errorPrefix": "Error",
-  "notAvailable": "n/a"
+  "notAvailable": "n/a",
+  "justNow": "just now",
+  "minAgo": "{n} min ago",
+  "hoursAgo": "{n} hours ago",
+  "daysAgo": "{n} days ago"
 }
