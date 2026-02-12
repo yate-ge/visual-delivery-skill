@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useDeliveries } from '../hooks/useDeliveries';
+import { useSettings } from '../hooks/useSettings';
 import { t } from '../lib/i18n';
 
 function formatTime(dateStr) {
@@ -17,6 +18,7 @@ function displayTime(delivery) {
 }
 
 export default function Dashboard() {
+  const { platform } = useSettings();
   const { deliveries, loading, error } = useDeliveries();
 
   const filtered = useMemo(() => {
@@ -31,7 +33,7 @@ export default function Dashboard() {
     <div style={styles.container}>
       <header style={styles.header}>
         <div>
-          <h1 style={styles.title}>{t('appTitle')}</h1>
+          <h1 style={styles.title}>{platform.name || t('appTitle')}</h1>
           <div style={styles.accent} />
         </div>
         <Link to="/settings" style={styles.settingsLink}>

@@ -14,10 +14,8 @@ const DEFAULT_SETTINGS = {
   language: null,
   language_explicit: false,
   platform: {
-    name: 'Visual Delivery',
-    logo_url: '',
-    slogan: 'Turn work into clear decisions.',
-    visual_style: 'executive-brief',
+    name: 'Task Delivery Center',
+    slogan: 'Make feedback clear. Let agents work easier.',
   },
 };
 

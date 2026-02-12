@@ -218,23 +218,30 @@ async function main() {
     }
   }
 
+  // Language-aware platform defaults (preset languages only; others use en fallback)
+  const PLATFORM_DEFAULTS = {
+    zh: { name: '任务交付中心', slogan: '让反馈清晰，让协作高效。' },
+    en: { name: 'Task Delivery Center', slogan: 'Make feedback clear. Let agents work easier.' },
+  };
+  function getPlatformDefaults(lang) {
+    return PLATFORM_DEFAULTS[lang] || PLATFORM_DEFAULTS.en;
+  }
+
   // Always update settings.json with current language
   if (!fs.existsSync(settingsPath) || langChanged) {
     const existingSettings = (() => {
       try { return JSON.parse(fs.readFileSync(settingsPath, 'utf8')); }
       catch { return {}; }
     })();
+    const platformDefaults = getPlatformDefaults(initLang);
     fs.writeFileSync(
       settingsPath,
       JSON.stringify({
         language: initLang,
         language_explicit: true,
-        platform: existingSettings.platform || {
-          name: 'Visual Delivery',
-          logo_url: '',
-          slogan: 'Turn work into clear decisions.',
-          visual_style: 'executive-brief',
-        },
+        platform: existingSettings.platform
+          ? { name: existingSettings.platform.name, slogan: existingSettings.platform.slogan }
+          : platformDefaults,
       }, null, 2),
       'utf8'
     );

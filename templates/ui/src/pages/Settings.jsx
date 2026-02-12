@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchSettings, updateSettings } from '../lib/api';
+import { useSettings } from '../hooks/useSettings';
 import { t } from '../lib/i18n';
 
 export default function Settings() {
+  const { update: updateGlobal } = useSettings();
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -22,6 +24,7 @@ export default function Settings() {
     try {
       const result = await updateSettings(settings);
       setSettings(result);
+      updateGlobal(result);
       setMessage(t('settingsSaved'));
     } catch (err) {
       setMessage(t('saveFailed', { message: err.message }));
@@ -68,28 +71,10 @@ export default function Settings() {
             </label>
 
             <label style={styles.label}>
-              {t('logoUrl')}
-              <input
-                value={settings.platform?.logo_url || ''}
-                onChange={(e) => updatePlatformField('logo_url', e.target.value)}
-                style={styles.input}
-              />
-            </label>
-
-            <label style={styles.label}>
               {t('slogan')}
               <input
                 value={settings.platform?.slogan || ''}
                 onChange={(e) => updatePlatformField('slogan', e.target.value)}
-                style={styles.input}
-              />
-            </label>
-
-            <label style={styles.label}>
-              {t('visualStyle')}
-              <input
-                value={settings.platform?.visual_style || ''}
-                onChange={(e) => updatePlatformField('visual_style', e.target.value)}
                 style={styles.input}
               />
             </label>

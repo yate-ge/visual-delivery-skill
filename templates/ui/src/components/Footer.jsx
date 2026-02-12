@@ -1,20 +1,13 @@
-import { useEffect, useState } from 'react';
-import { fetchSettings } from '../lib/api';
+import { useSettings } from '../hooks/useSettings';
 
 export default function Footer() {
-  const [slogan, setSlogan] = useState('');
+  const { platform } = useSettings();
 
-  useEffect(() => {
-    fetchSettings()
-      .then((data) => setSlogan(data?.platform?.slogan || ''))
-      .catch(() => {});
-  }, []);
-
-  if (!slogan) return null;
+  if (!platform.slogan) return null;
 
   return (
     <footer style={styles.footer}>
-      <div style={styles.text}>{slogan}</div>
+      <div style={styles.text}>{platform.slogan}</div>
     </footer>
   );
 }
