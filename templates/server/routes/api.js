@@ -10,9 +10,12 @@ const DELIVERY_STATUSES = ['normal', 'pending_feedback'];
 // Preset languages have built-in locale files; any language string is accepted
 const PRESET_LANGUAGES = ['zh', 'en'];
 
+const VALID_TRIGGER_MODES = ['auto', 'smart', 'manual'];
+
 const DEFAULT_SETTINGS = {
   language: null,
   language_explicit: false,
+  trigger_mode: 'smart',
   platform: {
     name: 'Task Delivery Center',
     slogan: 'Make feedback clear. Let agents work easier.',
@@ -300,9 +303,14 @@ function setupRoutes(app, dataDir) {
       ? stored.language
       : DEFAULT_SETTINGS.language;
 
+    const triggerMode = VALID_TRIGGER_MODES.includes(stored.trigger_mode)
+      ? stored.trigger_mode
+      : DEFAULT_SETTINGS.trigger_mode;
+
     return {
       language,
       language_explicit: languageExplicit,
+      trigger_mode: triggerMode,
       platform: {
         ...DEFAULT_SETTINGS.platform,
         ...(stored.platform || {}),
@@ -755,9 +763,14 @@ function setupRoutes(app, dataDir) {
         ? (typeof requestedLanguage === 'string' && !!requestedLanguage)
         : current.language_explicit === true;
 
+      const triggerMode = (input.trigger_mode && VALID_TRIGGER_MODES.includes(input.trigger_mode))
+        ? input.trigger_mode
+        : current.trigger_mode;
+
       const next = {
         language,
         language_explicit: languageExplicit,
+        trigger_mode: triggerMode,
         platform: {
           ...current.platform,
           ...(input.platform || {}),

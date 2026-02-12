@@ -202,7 +202,7 @@ async function main() {
   })();
   const langChanged = currentLang !== initLang;
 
-  if (!fs.existsSync(localePath) || langChanged) {
+  if (!fs.existsSync(localePath) || langChanged || templatesSynced) {
     const presetPath = path.join(localesDestDir, `${initLang}.json`);
     if (fs.existsSync(presetPath)) {
       // Use preset for known languages
@@ -239,6 +239,7 @@ async function main() {
       JSON.stringify({
         language: initLang,
         language_explicit: true,
+        trigger_mode: existingSettings.trigger_mode || 'smart',
         platform: existingSettings.platform
           ? { name: existingSettings.platform.name, slogan: existingSettings.platform.slogan }
           : platformDefaults,

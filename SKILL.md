@@ -130,6 +130,24 @@ curl -s -X PUT http://localhost:3847/api/locale \
 
 After writing, tell user to refresh the browser (or the next page load will pick up the new locale automatically).
 
+### Step 1.5: Check trigger mode
+
+Read the current trigger mode from settings:
+
+```bash
+curl -s http://localhost:3847/api/settings
+```
+
+Check the `trigger_mode` field:
+
+| `trigger_mode` | Behavior |
+|----------------|----------|
+| `auto` | Always proceed to Step 2 for every task result. |
+| `smart` (default) | Proceed to Step 2 only when the result benefits from visual presentation (structured data, code reviews, dashboards, comparisons, multi-item decisions). Skip for simple text answers, confirmations, or short responses — reply with plain text instead. |
+| `manual` | Only proceed to Step 2 when the user explicitly requests visual delivery (e.g., "show me visually", "deliver this", "create a delivery page"). Otherwise respond with plain text. |
+
+If the current interaction does not qualify based on trigger_mode, respond normally with plain text and skip Steps 2–4.
+
 ### Step 2: Generate delivery page (Generative UI)
 
 Generate `content.type = "generated_html"` — a complete, self-contained HTML page.

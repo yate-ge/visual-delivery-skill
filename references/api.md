@@ -280,24 +280,26 @@ Returns platform configuration:
 
 ```json
 {
+  "language": "en",
+  "language_explicit": true,
+  "trigger_mode": "smart",
   "platform": {
-    "name": "Visual Delivery",
-    "logo_url": "",
-    "slogan": "Turn work into clear decisions.",
-    "visual_style": "executive-brief"
+    "name": "Task Delivery Center",
+    "slogan": "Make feedback clear. Let agents work easier."
   }
 }
 ```
+
+`trigger_mode` values: `"auto"` | `"smart"` (default) | `"manual"`
 
 ### `PUT /api/settings`
 
 ```json
 {
+  "trigger_mode": "auto",
   "platform": {
     "name": "My Delivery Hub",
-    "logo_url": "https://...",
-    "slogan": "...",
-    "visual_style": "minimal"
+    "slogan": "..."
   }
 }
 ```
