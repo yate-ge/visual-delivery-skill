@@ -20,3 +20,6 @@ dist/
 
 # Visual Delivery work directory
 .visual-delivery/
+
+# Playwright MCP
+.playwright-mcp/
