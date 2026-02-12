@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   language_explicit: false,
   trigger_mode: 'smart',
   port: 3847,
+  remote: false,
   platform: {
     name: 'Task Delivery Center',
     slogan: 'Make feedback clear. Let agents work easier.',
@@ -314,11 +315,14 @@ function setupRoutes(app, dataDir) {
       ? storedPort
       : DEFAULT_SETTINGS.port;
 
+    const remote = stored.remote === true;
+
     return {
       language,
       language_explicit: languageExplicit,
       trigger_mode: triggerMode,
       port,
+      remote,
       platform: {
         ...DEFAULT_SETTINGS.platform,
         ...(stored.platform || {}),
@@ -780,11 +784,16 @@ function setupRoutes(app, dataDir) {
         ? inputPort
         : current.port;
 
+      const remote = Object.prototype.hasOwnProperty.call(input, 'remote')
+        ? input.remote === true
+        : current.remote;
+
       const next = {
         language,
         language_explicit: languageExplicit,
         trigger_mode: triggerMode,
         port,
+        remote,
         platform: {
           ...current.platform,
           ...(input.platform || {}),

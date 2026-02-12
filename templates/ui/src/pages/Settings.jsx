@@ -150,6 +150,19 @@ export default function Settings() {
                 />
                 <span style={styles.fieldHint}>{t('portHint')}</span>
               </label>
+
+              <label style={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={settings.remote ?? false}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, remote: e.target.checked }))}
+                  style={{ accentColor: 'var(--vds-colors-primary)' }}
+                />
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--vds-colors-text)' }}>{t('remoteAccess')}</div>
+                  <span style={styles.fieldHint}>{t('remoteAccessHint')}</span>
+                </div>
+              </label>
             </div>
           </section>
 
@@ -328,6 +341,16 @@ const styles = {
     fontSize: '11px',
     color: 'var(--vds-colors-text-secondary)',
     fontStyle: 'italic',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '8px',
+    fontSize: '13px',
+    color: 'var(--vds-colors-text-secondary)',
+    cursor: 'pointer',
+    gridColumn: '1 / -1',
+    paddingTop: '4px',
   },
 
   /* Save area */

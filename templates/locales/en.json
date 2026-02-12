@@ -106,5 +106,7 @@
   "noDeliveriesHint": "Deliveries from the agent will appear here",
   "platformSlogan": "Make feedback clear. Let agents work easier.",
   "port": "Port",
-  "portHint": "Changes take effect after server restart"
+  "portHint": "Changes take effect after server restart",
+  "remoteAccess": "Remote Access",
+  "remoteAccessHint": "Enable public URL via cloudflared tunnel. Requires restart."
 }

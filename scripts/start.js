@@ -94,16 +94,17 @@ async function main() {
   const initLang = normalizeLang(args['lang']) || detectEnvLang();
   const shouldSyncTemplates = args['sync-templates'] !== 'false';
 
-  // Resolve port: --port CLI flag > settings.port > default 3847
+  // Read persisted settings early (for port & remote resolution)
   const settingsPath = path.join(dataDir, 'data', 'settings.json');
-  const cliPort = parseInt(args['port']);
-  const settingsPort = (() => {
-    try {
-      const s = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-      const p = parseInt(s.port);
-      return (p >= 1024 && p <= 65535) ? p : null;
-    } catch { return null; }
+  const persistedSettings = (() => {
+    try { return JSON.parse(fs.readFileSync(settingsPath, 'utf8')); }
+    catch { return {}; }
   })();
+
+  // Resolve port: --port CLI flag > settings.port > default 3847
+  const cliPort = parseInt(args['port']);
+  const pPort = parseInt(persistedSettings.port);
+  const settingsPort = (pPort >= 1024 && pPort <= 65535) ? pPort : null;
   const port = (cliPort >= 1024 && cliPort <= 65535) ? cliPort : (settingsPort || PORT);
 
   // Check Node.js version
@@ -345,9 +346,9 @@ async function main() {
     process.exit(1);
   }
 
-  // Handle remote access
+  // Handle remote access: --remote CLI flag > settings.remote > default false
   let remoteUrl = null;
-  const wantRemote = args['remote'] === true;
+  const wantRemote = args['remote'] === true || (persistedSettings.remote === true && args['remote'] !== 'false');
 
   if (wantRemote) {
     log('Checking remote access...');
@@ -391,17 +392,16 @@ async function main() {
     }
   }
 
-  // Output results
-  const designSpecPath = path.relative(process.cwd(), path.join(dataDir, 'design', 'design-spec.md'));
+  // Resolve trigger mode for output
+  const triggerMode = persistedSettings.trigger_mode || 'smart';
+  const triggerModeLabels = { auto: 'Auto', smart: 'Smart (context-based)', manual: 'Manual' };
 
+  // Output results
   log('');
   log('Ready!');
-  log(`  Local URL:   http://localhost:${port}`);
-  if (remoteUrl) log(`  Remote URL:  ${remoteUrl}`);
-  if (firstRun) {
-    log(`  Design spec: ${designSpecPath}`);
-    log('  Edit design-spec.md or tokens.json to customize the UI.');
-  }
+  log(`  Local URL:      http://localhost:${port}`);
+  if (remoteUrl) log(`  Remote URL:     ${remoteUrl}`);
+  log(`  Trigger mode:   ${triggerModeLabels[triggerMode] || triggerMode}`);
 
   outputJSON({
     status: 'started',
@@ -411,7 +411,7 @@ async function main() {
     first_run: firstRun,
     templates_synced: templatesSynced,
     language: initLang,
-    design_spec_path: firstRun ? designSpecPath : undefined
+    trigger_mode: triggerMode
   });
 }
 
