@@ -124,6 +124,16 @@ export default function Settings() {
                   style={styles.input}
                 />
               </label>
+
+              <label style={styles.label}>
+                {t('favicon')}
+                <input
+                  value={settings.platform?.favicon || ''}
+                  onChange={(e) => updatePlatformField('favicon', e.target.value)}
+                  placeholder="🐂"
+                  style={{ ...styles.input, maxWidth: '120px' }}
+                />
+              </label>
             </div>
           </section>
 

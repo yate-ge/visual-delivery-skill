@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS = {
   platform: {
     name: 'Task Delivery Center',
     slogan: 'Make feedback clear. Let agents work easier.',
+    favicon: '🐂',
   },
 };
 

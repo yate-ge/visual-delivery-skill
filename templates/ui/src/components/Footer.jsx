@@ -4,13 +4,14 @@ import { t, has } from '../lib/i18n';
 export default function Footer() {
   const { platform } = useSettings();
   const sloganText = platform.slogan || (has('platformSlogan') ? t('platformSlogan') : '');
+  const icon = platform.favicon || '🐂';
 
   if (!sloganText) return null;
 
   return (
     <footer style={styles.outer}>
       <div style={styles.inner}>
-        <div style={styles.text}>{sloganText}</div>
+        <div style={styles.text}><span style={styles.icon}>{icon}</span>{sloganText}</div>
       </div>
     </footer>
   );
@@ -30,5 +31,9 @@ const styles = {
   text: {
     fontSize: '12px',
     color: 'var(--vds-colors-text-secondary)',
+  },
+  icon: {
+    marginRight: '6px',
+    fontSize: '14px',
   },
 };

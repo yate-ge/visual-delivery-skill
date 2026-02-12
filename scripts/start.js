@@ -224,7 +224,7 @@ async function main() {
   }
 
   // Platform defaults — English only; non-English falls back to locale values in frontend
-  const PLATFORM_DEFAULTS_EN = { name: 'Task Delivery Center', slogan: 'Make feedback clear. Let agents work easier.' };
+  const PLATFORM_DEFAULTS_EN = { name: 'Task Delivery Center', slogan: 'Make feedback clear. Let agents work easier.', favicon: '🐂' };
 
   // Read existing settings to check if platform needs update
   const existingSettings = (() => {
@@ -244,10 +244,11 @@ async function main() {
     const hasCustomPlatform = existingSettings.platform
       && (existingSettings.platform.name || existingSettings.platform.slogan);
     const platformValue = (() => {
+      const ep = existingSettings.platform || {};
       if (hasCustomPlatform && !isStaleEnPlatform) {
-        return { name: existingSettings.platform.name, slogan: existingSettings.platform.slogan };
+        return { name: ep.name, slogan: ep.slogan, favicon: ep.favicon || '🐂' };
       }
-      return isPresetLang ? PLATFORM_DEFAULTS_EN : { name: '', slogan: '' };
+      return isPresetLang ? PLATFORM_DEFAULTS_EN : { name: '', slogan: '', favicon: '🐂' };
     })();
 
     fs.writeFileSync(
