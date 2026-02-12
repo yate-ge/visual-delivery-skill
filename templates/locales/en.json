@@ -102,5 +102,6 @@
   "minAgo": "{n} min ago",
   "hoursAgo": "{n} hours ago",
   "daysAgo": "{n} days ago",
-  "noDeliveriesHint": "Deliveries from the agent will appear here"
+  "noDeliveriesHint": "Deliveries from the agent will appear here",
+  "platformSlogan": "Make feedback clear. Let agents work easier."
 }

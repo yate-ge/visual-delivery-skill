@@ -7,6 +7,10 @@ export function t(key, params = {}) {
   return str.replace(/\{(\w+)\}/g, (_, k) => (params[k] !== undefined ? params[k] : `{${k}}`));
 }
 
+export function has(key) {
+  return key in locale;
+}
+
 export function getLang() {
   return (typeof window !== 'undefined' && window.__VD_LANG__) || 'en';
 }

@@ -223,24 +223,40 @@ async function main() {
     }
   }
 
-  // Platform defaults — English only; agent generates localized name/slogan for other languages
-  const PLATFORM_DEFAULTS = { name: 'Task Delivery Center', slogan: 'Make feedback clear. Let agents work easier.' };
+  // Platform defaults — English only; non-English falls back to locale values in frontend
+  const PLATFORM_DEFAULTS_EN = { name: 'Task Delivery Center', slogan: 'Make feedback clear. Let agents work easier.' };
 
-  // Always update settings.json with current language
-  if (!fs.existsSync(settingsPath) || langChanged) {
-    const existingSettings = (() => {
-      try { return JSON.parse(fs.readFileSync(settingsPath, 'utf8')); }
-      catch { return {}; }
+  // Read existing settings to check if platform needs update
+  const existingSettings = (() => {
+    if (!fs.existsSync(settingsPath)) return {};
+    try { return JSON.parse(fs.readFileSync(settingsPath, 'utf8')); }
+    catch { return {}; }
+  })();
+
+  // Detect stale English platform defaults on non-English language
+  const isStaleEnPlatform = !isPresetLang
+    && existingSettings.platform?.name === PLATFORM_DEFAULTS_EN.name;
+
+  // Update settings.json when needed
+  if (!fs.existsSync(settingsPath) || langChanged || isStaleEnPlatform) {
+    // For non-English: use empty platform so frontend falls back to locale (appTitle / platformSlogan)
+    // Treat empty platform (both name/slogan falsy) as unset — re-apply defaults
+    const hasCustomPlatform = existingSettings.platform
+      && (existingSettings.platform.name || existingSettings.platform.slogan);
+    const platformValue = (() => {
+      if (hasCustomPlatform && !isStaleEnPlatform) {
+        return { name: existingSettings.platform.name, slogan: existingSettings.platform.slogan };
+      }
+      return isPresetLang ? PLATFORM_DEFAULTS_EN : { name: '', slogan: '' };
     })();
+
     fs.writeFileSync(
       settingsPath,
       JSON.stringify({
         language: initLang,
         language_explicit: true,
         trigger_mode: existingSettings.trigger_mode || 'smart',
-        platform: existingSettings.platform
-          ? { name: existingSettings.platform.name, slogan: existingSettings.platform.slogan }
-          : PLATFORM_DEFAULTS,
+        platform: platformValue,
       }, null, 2),
       'utf8'
     );

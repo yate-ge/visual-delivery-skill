@@ -1,14 +1,16 @@
 import { useSettings } from '../hooks/useSettings';
+import { t, has } from '../lib/i18n';
 
 export default function Footer() {
   const { platform } = useSettings();
+  const sloganText = platform.slogan || (has('platformSlogan') ? t('platformSlogan') : '');
 
-  if (!platform.slogan) return null;
+  if (!sloganText) return null;
 
   return (
     <footer style={styles.outer}>
       <div style={styles.inner}>
-        <div style={styles.text}>{platform.slogan}</div>
+        <div style={styles.text}>{sloganText}</div>
       </div>
     </footer>
   );
