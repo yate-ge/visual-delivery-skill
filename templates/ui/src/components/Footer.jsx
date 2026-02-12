@@ -6,18 +6,24 @@ export default function Footer() {
   if (!platform.slogan) return null;
 
   return (
-    <footer style={styles.footer}>
-      <div style={styles.text}>{platform.slogan}</div>
+    <footer style={styles.outer}>
+      <div style={styles.inner}>
+        <div style={styles.text}>{platform.slogan}</div>
+      </div>
     </footer>
   );
 }
 
 const styles = {
-  footer: {
-    borderTop: '1px solid var(--vds-colors-border)',
-    padding: '16px 20px',
-    textAlign: 'center',
+  outer: {
     marginTop: 'auto',
+  },
+  inner: {
+    maxWidth: '920px',
+    margin: '0 auto',
+    padding: '16px var(--vds-spacing-page-padding)',
+    borderTop: '1px solid var(--vds-colors-border)',
+    textAlign: 'center',
   },
   text: {
     fontSize: '12px',
