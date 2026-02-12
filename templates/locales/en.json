@@ -104,5 +104,7 @@
   "hoursAgo": "{n} hours ago",
   "daysAgo": "{n} days ago",
   "noDeliveriesHint": "Deliveries from the agent will appear here",
-  "platformSlogan": "Make feedback clear. Let agents work easier."
+  "platformSlogan": "Make feedback clear. Let agents work easier.",
+  "port": "Port",
+  "portHint": "Changes take effect after server restart"
 }

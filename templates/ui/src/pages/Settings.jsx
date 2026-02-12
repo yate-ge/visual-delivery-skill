@@ -134,6 +134,22 @@ export default function Settings() {
                   style={{ ...styles.input, maxWidth: '120px' }}
                 />
               </label>
+
+              <label style={styles.label}>
+                {t('port')}
+                <input
+                  type="number"
+                  min={1024}
+                  max={65535}
+                  value={settings.port ?? 3847}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value);
+                    setSettings((prev) => ({ ...prev, port: isNaN(v) ? '' : v }));
+                  }}
+                  style={{ ...styles.input, maxWidth: '120px' }}
+                />
+                <span style={styles.fieldHint}>{t('portHint')}</span>
+              </label>
             </div>
           </section>
 
@@ -306,6 +322,11 @@ const styles = {
     background: 'var(--vds-colors-surface)',
     border: '1px solid var(--vds-colors-border)',
     borderRadius: '8px',
+  },
+  fieldHint: {
+    fontSize: '11px',
+    color: 'var(--vds-colors-text-secondary)',
+    fontStyle: 'italic',
   },
 
   /* Save area */

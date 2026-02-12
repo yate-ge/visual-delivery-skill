@@ -90,10 +90,21 @@ async function checkServerHealth(port, timeoutSec) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const port = parseInt(args['port']) || PORT;
   const dataDir = path.resolve(args['data-dir'] || path.join(process.cwd(), '.visual-delivery'));
   const initLang = normalizeLang(args['lang']) || detectEnvLang();
   const shouldSyncTemplates = args['sync-templates'] !== 'false';
+
+  // Resolve port: --port CLI flag > settings.port > default 3847
+  const settingsPath = path.join(dataDir, 'data', 'settings.json');
+  const cliPort = parseInt(args['port']);
+  const settingsPort = (() => {
+    try {
+      const s = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      const p = parseInt(s.port);
+      return (p >= 1024 && p <= 65535) ? p : null;
+    } catch { return null; }
+  })();
+  const port = (cliPort >= 1024 && cliPort <= 65535) ? cliPort : (settingsPort || PORT);
 
   // Check Node.js version
   const nodeVersion = parseInt(process.versions.node.split('.')[0]);
@@ -194,7 +205,6 @@ async function main() {
 
   // Generate locale.json from preset when language changes or missing
   const localePath = path.join(dataDir, 'data', 'locale.json');
-  const settingsPath = path.join(dataDir, 'data', 'settings.json');
   const currentLang = (() => {
     try {
       return JSON.parse(fs.readFileSync(settingsPath, 'utf8')).language;
@@ -257,6 +267,7 @@ async function main() {
         language: initLang,
         language_explicit: true,
         trigger_mode: existingSettings.trigger_mode || 'smart',
+        port,
         platform: platformValue,
       }, null, 2),
       'utf8'

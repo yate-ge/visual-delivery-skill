@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS = {
   language: null,
   language_explicit: false,
   trigger_mode: 'smart',
+  port: 3847,
   platform: {
     name: 'Task Delivery Center',
     slogan: 'Make feedback clear. Let agents work easier.',
@@ -308,10 +309,16 @@ function setupRoutes(app, dataDir) {
       ? stored.trigger_mode
       : DEFAULT_SETTINGS.trigger_mode;
 
+    const storedPort = parseInt(stored.port);
+    const port = (storedPort >= 1024 && storedPort <= 65535)
+      ? storedPort
+      : DEFAULT_SETTINGS.port;
+
     return {
       language,
       language_explicit: languageExplicit,
       trigger_mode: triggerMode,
+      port,
       platform: {
         ...DEFAULT_SETTINGS.platform,
         ...(stored.platform || {}),
@@ -768,10 +775,16 @@ function setupRoutes(app, dataDir) {
         ? input.trigger_mode
         : current.trigger_mode;
 
+      const inputPort = parseInt(input.port);
+      const port = (inputPort >= 1024 && inputPort <= 65535)
+        ? inputPort
+        : current.port;
+
       const next = {
         language,
         language_explicit: languageExplicit,
         trigger_mode: triggerMode,
+        port,
         platform: {
           ...current.platform,
           ...(input.platform || {}),
