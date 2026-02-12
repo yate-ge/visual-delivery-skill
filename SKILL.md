@@ -53,7 +53,7 @@ Instead, go directly to Step 1: start the service, show the URL, and ask the rem
 
 UI strings are stored in `{DATA_DIR}/data/locale.json`. The server injects this into every HTML response as `window.__VD_LOCALE__` — zero flash, immediate rendering in the correct language.
 
-Built-in presets exist for `zh` and `en` (`templates/locales/`). For ANY other language, the agent generates the locale at init time.
+Only English has a built-in preset (`templates/locales/en.json`). For ALL other languages, the agent generates the locale at init time (Step 1b).
 
 ### Step 1: Ensure service is running
 
@@ -116,16 +116,21 @@ If `remote_url` is returned, tell user the tunnel URL.
 
 #### Step 1b: Generate locale (if needed)
 
-`start.js` uses built-in presets for `zh` and `en`. For any other language, it falls back to English and the agent MUST generate the locale.
+Only English has a built-in locale preset. For ALL other languages (including Chinese), the agent generates the locale at runtime.
 
-Check if locale needs generation: read `{DATA_DIR}/data/locale.json` — if the strings are in the wrong language (e.g., English when user speaks Japanese), generate a new locale.
+Check if locale needs generation:
 
-To generate: read the reference template `{DATA_DIR}/locales/en.json` (contains all required keys). Translate every value to the user's language. Then write via API:
+1. Read `{DATA_DIR}/data/locale.json` (current locale) and `{DATA_DIR}/locales/en.json` (English reference with all keys).
+2. Generation is needed if ANY of these are true:
+   - `platform_lang` is not English AND the current locale values are in English (wrong language)
+   - The current locale has fewer keys than the English reference (new keys added after a template update)
+
+To generate: read the English reference `{DATA_DIR}/locales/en.json` (contains all required keys). Translate every value to `platform_lang`. Then write via API:
 
 ```bash
 curl -s -X PUT http://localhost:3847/api/locale \
   -H 'Content-Type: application/json' \
-  -d '{ "appTitle": "ビジュアルデリバリー", "settings": "設定", ... }'
+  -d '{ "appTitle": "任务交付中心", "settings": "设置", ... }'
 ```
 
 After writing, tell user to refresh the browser (or the next page load will pick up the new locale automatically).

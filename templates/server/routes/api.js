@@ -7,8 +7,8 @@ const { nowLocalISO, ensureLocalISO } = require('../lib/time');
 
 const DELIVERY_MODES = ['task_delivery'];
 const DELIVERY_STATUSES = ['normal', 'pending_feedback'];
-// Preset languages have built-in locale files; any language string is accepted
-const PRESET_LANGUAGES = ['zh', 'en'];
+// Only English has a built-in locale file; all other languages are agent-generated
+const PRESET_LANGUAGES = ['en'];
 
 const VALID_TRIGGER_MODES = ['auto', 'smart', 'manual'];
 

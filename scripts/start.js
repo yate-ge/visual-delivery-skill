@@ -8,8 +8,8 @@ const PORT = 3847;           // Avoids conflict with 3000/5173/8080 common dev p
 const HEALTH_TIMEOUT = 15;   // Seconds to wait for server startup
 
 const SKILL_DIR = path.resolve(__dirname, '..');
-// Preset languages have built-in locale files; any other language is agent-generated
-const PRESET_LANGS = ['zh', 'en'];
+// Only English has a built-in locale; all other languages are agent-generated at runtime
+const PRESET_LANGS = ['en'];
 
 function log(msg) {
   process.stderr.write(`[visual-delivery] ${msg}\n`);
@@ -202,14 +202,19 @@ async function main() {
   })();
   const langChanged = currentLang !== initLang;
 
-  if (!fs.existsSync(localePath) || langChanged || templatesSynced) {
+  const isPresetLang = PRESET_LANGS.includes(initLang);
+  const needsLocaleRefresh = !fs.existsSync(localePath)
+    || langChanged
+    || (templatesSynced && isPresetLang);
+
+  if (needsLocaleRefresh) {
     const presetPath = path.join(localesDestDir, `${initLang}.json`);
     if (fs.existsSync(presetPath)) {
-      // Use preset for known languages
+      // Use built-in preset (English)
       fs.cpSync(presetPath, localePath);
       log(`  Locale set from preset: ${initLang}`);
     } else {
-      // Unknown language — copy en.json as fallback, agent will regenerate
+      // Non-preset language — copy en.json as fallback, agent will generate
       const fallbackPath = path.join(localesDestDir, 'en.json');
       if (fs.existsSync(fallbackPath)) {
         fs.cpSync(fallbackPath, localePath);
@@ -218,14 +223,8 @@ async function main() {
     }
   }
 
-  // Language-aware platform defaults (preset languages only; others use en fallback)
-  const PLATFORM_DEFAULTS = {
-    zh: { name: '任务交付中心', slogan: '让反馈清晰，让协作高效。' },
-    en: { name: 'Task Delivery Center', slogan: 'Make feedback clear. Let agents work easier.' },
-  };
-  function getPlatformDefaults(lang) {
-    return PLATFORM_DEFAULTS[lang] || PLATFORM_DEFAULTS.en;
-  }
+  // Platform defaults — English only; agent generates localized name/slogan for other languages
+  const PLATFORM_DEFAULTS = { name: 'Task Delivery Center', slogan: 'Make feedback clear. Let agents work easier.' };
 
   // Always update settings.json with current language
   if (!fs.existsSync(settingsPath) || langChanged) {
@@ -233,7 +232,6 @@ async function main() {
       try { return JSON.parse(fs.readFileSync(settingsPath, 'utf8')); }
       catch { return {}; }
     })();
-    const platformDefaults = getPlatformDefaults(initLang);
     fs.writeFileSync(
       settingsPath,
       JSON.stringify({
@@ -242,7 +240,7 @@ async function main() {
         trigger_mode: existingSettings.trigger_mode || 'smart',
         platform: existingSettings.platform
           ? { name: existingSettings.platform.name, slogan: existingSettings.platform.slogan }
-          : platformDefaults,
+          : PLATFORM_DEFAULTS,
       }, null, 2),
       'utf8'
     );
