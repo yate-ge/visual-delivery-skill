@@ -274,6 +274,7 @@ const styles = {
     gap: '10px',
     padding: '12px 14px',
     border: '1.5px solid var(--vds-colors-border)',
+    borderColor: 'var(--vds-colors-border)',
     borderRadius: '8px',
     cursor: 'pointer',
     background: 'white',
