@@ -88,5 +88,6 @@
   "justNow": "just now",
   "minAgo": "{n} min ago",
   "hoursAgo": "{n} hours ago",
-  "daysAgo": "{n} days ago"
+  "daysAgo": "{n} days ago",
+  "noDeliveriesHint": "Deliveries from the agent will appear here"
 }

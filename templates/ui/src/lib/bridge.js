@@ -97,6 +97,8 @@ export function getBridgeScript(lang) {
   /* Inject feedback option CSS */
   var styleEl = document.createElement('style');
   styleEl.textContent = [
+    /* Prevent iframe-internal scrollbar — parent sizes iframe to content height */
+    'html, body { overflow: hidden; }',
     /* Base pill/chip style for all feedback buttons (fallback if agent omits inline styles) */
     'button[data-vd-feedback-action] { position:relative; padding:6px 16px; border:1px solid var(--vds-colors-border, #e2e8f0); border-radius:8px; background:var(--vds-colors-surface, #f8fafc); color:var(--vds-colors-text, #1e293b); font-size:13px; font-family:inherit; cursor:pointer; transition:all .15s; user-select:none; }',
     'button[data-vd-feedback-action]:hover:not(.vd-selected) { border-color:var(--vds-colors-primary, #3b82f6); color:var(--vds-colors-primary, #3b82f6); }',

@@ -88,5 +88,6 @@
   "justNow": "刚刚",
   "minAgo": "{n} 分钟前",
   "hoursAgo": "{n} 小时前",
-  "daysAgo": "{n} 天前"
+  "daysAgo": "{n} 天前",
+  "noDeliveriesHint": "Agent 完成任务后，交付结果将在此展示"
 }

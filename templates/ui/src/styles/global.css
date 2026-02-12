@@ -51,3 +51,15 @@ code {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--vds-colors-text-secondary);
 }
+
+/* Delivery card hover */
+.delivery-card {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.delivery-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  border-color: var(--vds-colors-border);
+  border-left-color: var(--vds-colors-primary);
+  transform: translateY(-1px);
+}

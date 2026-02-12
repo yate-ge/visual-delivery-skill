@@ -1,17 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useDesignTokens } from '../hooks/useDesignTokens';
-import { flattenTokens } from '../lib/theme';
 import { fetchSettings, updateSettings } from '../lib/api';
 import { t } from '../lib/i18n';
 
 export default function Settings() {
-  const tokens = useDesignTokens();
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
-
-  const flatTokens = useMemo(() => (tokens ? flattenTokens(tokens) : {}), [tokens]);
 
   useEffect(() => {
     fetchSettings()
@@ -106,33 +101,6 @@ export default function Settings() {
           </div>
         )}
       </section>
-
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>{t('designFiles')}</h2>
-        <div style={styles.pathList}>
-          <code style={styles.path}>.visual-delivery/design/design-spec.md</code>
-          <code style={styles.path}>.visual-delivery/design/tokens.json</code>
-        </div>
-      </section>
-
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>{t('currentTokenValues')}</h2>
-        {tokens ? (
-          <div style={styles.tokenList}>
-            {Object.entries(flatTokens).map(([key, value]) => (
-              <div key={key} style={styles.tokenItem}>
-                <code style={styles.tokenKey}>--vds-{key}</code>
-                <span style={styles.tokenValue}>
-                  {value.startsWith('#') && <span style={{ ...styles.swatch, background: value }} />}
-                  {value}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={styles.description}>{t('loadingDesignTokens')}</p>
-        )}
-      </section>
     </div>
   );
 }
@@ -211,44 +179,5 @@ const styles = {
     gridColumn: '1 / -1',
     fontSize: '13px',
     color: 'var(--vds-colors-text-secondary)',
-  },
-  pathList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  path: {
-    background: 'var(--vds-colors-surface)',
-    border: '1px solid var(--vds-colors-border)',
-    borderRadius: '8px',
-    padding: '8px 10px',
-    fontSize: '12px',
-  },
-  tokenList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  tokenItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: '12px',
-    borderBottom: '1px solid var(--vds-colors-border)',
-    padding: '6px 0',
-    fontSize: '12px',
-  },
-  tokenKey: {
-    color: 'var(--vds-colors-text-secondary)',
-  },
-  tokenValue: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  swatch: {
-    width: '12px',
-    height: '12px',
-    borderRadius: '3px',
-    border: '1px solid var(--vds-colors-border)',
   },
 };

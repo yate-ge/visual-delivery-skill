@@ -30,7 +30,7 @@ function injectIntoHTML(html, tokens, lang) {
 
 export default function GeneratedContentFrame({ html, tokens, onAnnotation, onInteractive, onReplaceDraft, drafts }) {
   const iframeRef = useRef(null);
-  const [height, setHeight] = useState(400);
+  const [height, setHeight] = useState(0);
   const prevDraftsRef = useRef([]);
 
   // Handle postMessage from iframe
@@ -117,7 +117,7 @@ export default function GeneratedContentFrame({ html, tokens, onAnnotation, onIn
       ref={iframeRef}
       srcDoc={srcdoc}
       sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      style={{ ...styles.iframe, height: `${height}px` }}
+      style={{ ...styles.iframe, height: height > 0 ? `${height}px` : 'auto' }}
       title="Delivery content"
     />
   );
