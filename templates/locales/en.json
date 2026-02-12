@@ -107,6 +107,6 @@
   "platformSlogan": "Make feedback clear. Let agents work easier.",
   "port": "Port",
   "portHint": "Changes take effect after server restart",
-  "remoteAccess": "Remote Access",
-  "remoteAccessHint": "Enable public URL via cloudflared tunnel. Requires restart."
+  "remoteAccess": "Network Access",
+  "remoteAccessHint": "Allow LAN / external access (0.0.0.0). Requires restart."
 }

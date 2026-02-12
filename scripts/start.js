@@ -62,17 +62,6 @@ function isProcessAlive(pid) {
   }
 }
 
-function commandExists(cmd) {
-  try {
-    execSync(
-      process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`,
-      { stdio: 'ignore' }
-    );
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 async function checkServerHealth(port, timeoutSec) {
   const deadline = Date.now() + timeoutSec * 1000;
@@ -320,6 +309,10 @@ async function main() {
     }
   }
 
+  // Resolve network access: --remote CLI flag > settings.remote > default false
+  const allowRemote = args['remote'] === true || (persistedSettings.remote === true && args['remote'] !== 'false');
+  const host = allowRemote ? '0.0.0.0' : '127.0.0.1';
+
   // Start server
   log('Starting server...');
   const logFd = fs.openSync(path.join(dataDir, 'logs', 'server.log'), 'a');
@@ -327,6 +320,7 @@ async function main() {
     'index.js',
     '--data-dir', dataDir,
     '--port', String(port),
+    '--host', host,
     '--ui-dir', distDir
   ], {
     cwd: serverDir,
@@ -346,52 +340,6 @@ async function main() {
     process.exit(1);
   }
 
-  // Handle remote access: --remote CLI flag > settings.remote > default false
-  let remoteUrl = null;
-  const wantRemote = args['remote'] === true || (persistedSettings.remote === true && args['remote'] !== 'false');
-
-  if (wantRemote) {
-    log('Checking remote access...');
-    if (commandExists('cloudflared')) {
-      try {
-        const tunnelLogPath = path.join(dataDir, 'logs', 'tunnel.log');
-        const tunnelLogFd = fs.openSync(tunnelLogPath, 'a');
-        const tunnel = spawn('cloudflared', [
-          'tunnel', '--url', `http://localhost:${port}`
-        ], {
-          detached: true,
-          stdio: ['ignore', tunnelLogFd, tunnelLogFd]
-        });
-        tunnel.unref();
-        fs.closeSync(tunnelLogFd);
-        fs.writeFileSync(path.join(dataDir, 'tunnel.pid'), String(tunnel.pid));
-
-        // Wait for tunnel URL (parse from log)
-        const tunnelDeadline = Date.now() + 15000;
-        while (Date.now() < tunnelDeadline) {
-          await sleep(1000);
-          try {
-            const logContent = fs.readFileSync(tunnelLogPath, 'utf8');
-            const match = logContent.match(/https:\/\/[^\s]+\.trycloudflare\.com/);
-            if (match) {
-              remoteUrl = match[0];
-              fs.writeFileSync(path.join(dataDir, 'tunnel.url'), remoteUrl);
-              break;
-            }
-          } catch {}
-        }
-      } catch (err) {
-        log(`  Tunnel setup failed: ${err.message}`);
-        log('  Continuing with local access only.');
-      }
-    } else {
-      log('  cloudflared not found.');
-      log('  Install for remote access: brew install cloudflared');
-      log('  Or: npm install -g cloudflared');
-      log('  Continuing with local access only.');
-    }
-  }
-
   // Resolve trigger mode for output
   const triggerMode = persistedSettings.trigger_mode || 'smart';
   const triggerModeLabels = { auto: 'Auto', smart: 'Smart (context-based)', manual: 'Manual' };
@@ -399,14 +347,14 @@ async function main() {
   // Output results
   log('');
   log('Ready!');
-  log(`  Local URL:      http://localhost:${port}`);
-  if (remoteUrl) log(`  Remote URL:     ${remoteUrl}`);
+  log(`  URL:            http://${allowRemote ? '0.0.0.0' : 'localhost'}:${port}`);
+  log(`  Network:        ${allowRemote ? 'LAN / external' : 'localhost only'}`);
   log(`  Trigger mode:   ${triggerModeLabels[triggerMode] || triggerMode}`);
 
   outputJSON({
     status: 'started',
-    local_url: `http://localhost:${port}`,
-    remote_url: remoteUrl,
+    url: `http://${allowRemote ? '0.0.0.0' : 'localhost'}:${port}`,
+    host,
     pid: child.pid,
     first_run: firstRun,
     templates_synced: templatesSynced,
